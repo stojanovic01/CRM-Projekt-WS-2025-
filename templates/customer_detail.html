@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ customer.name }}</h2>
+<p>Email: {{ customer.email }}</p>
+<p>Gesamtumsatz: {{ total }} €</p>
+
+<h3>Letzte Bestellungen</h3>
+<ul>
+{% for o in orders %}
+  <li>{{ o.date }} – {{ o.amount }} €</li>
+{% endfor %}
+</ul>
+
+<h3>Letzte Kontakte</h3>
+<ul>
+{% for c in contacts %}
+  <li>{{ c.date }} – {{ c.type }} – {{ c.notes }}</li>
+{% endfor %}
+</ul>
+{% endblock %}
