@@ -1,5 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Willkommen im CRM!</h2>
-<p>Wähle einen Bereich aus der Navigation.</p>
+<h2>CRM Applikation</h2>
+<p>Willkommen zurück! Log in here: </p>
+
+<form action="{{ url_for('index') }}" method="post">
+  <label for="username">Benutzername:</label>
+  <input type="text" id="username" name="username" placeholder="Dein Name" /><br>
+
+  <label for="passwort">Passwort: </label>
+  <input type="text" id="passwort" name="passwort" placeholder="Dein Passwort"/><br>
+
+  <button type="submit">Log in</button>
+</form>
+
 {% endblock %}
+
