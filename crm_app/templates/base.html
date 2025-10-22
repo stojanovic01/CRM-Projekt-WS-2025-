@@ -2,9 +2,18 @@
 <html>
 <head>
     <title>CRM App</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+<header>
+    <h1>CRM System</h1>
+    <nav>
+        <a href="{{ url_for('mainview') }}">Dashboard</a>
+        <a href="{{ url_for('customers') }}">Kontakte</a>
+        <a href="{{ url_for('contacts') }}">Kundenkontakte</a>
+        <a href="{{ url_for('logout') }}" class="logout-btn">Abmelden</a>
+    </nav>
+</header>
 <main>
     {% block content %}{% endblock %}
 </main>

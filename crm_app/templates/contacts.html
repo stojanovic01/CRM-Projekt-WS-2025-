@@ -1,0 +1,682 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1><span class="page-icon">📞</span>Kundenkontakte dokumentieren</h1>
+    <button class="btn btn-primary" onclick="showAddForm()">
+        <span class="btn-icon">➕</span>Neuen Kontakt dokumentieren
+    </button>
+</div>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <div class="flash-messages">
+      {% for message in messages %}
+        <div class="flash-message flash-success">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<!-- Add/Edit Contact Form -->
+<div id="contactForm" class="form-container" style="display: none;">
+    <div class="form-card">
+        <h3 id="formTitle">Neuen Kontakt dokumentieren</h3>
+        <form method="POST" action="{{ url_for('contacts') }}">
+            <input type="hidden" id="contactId" name="contact_id" value="">
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="customerId">Kunde *</label>
+                    <select id="customerId" name="customer_id" required>
+                        <option value="">Kunde auswählen...</option>
+                        {% for customer in customers %}
+                        <option value="{{ customer.id }}">{{ customer.first_name }} {{ customer.last_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="channel">Kanal *</label>
+                    <select id="channel" name="channel" required>
+                        <option value="">Kanal auswählen...</option>
+                        <option value="Telefon">Telefon</option>
+                        <option value="E-Mail">E-Mail</option>
+                        <option value="Meeting">Meeting</option>
+                        <option value="Chat">Chat</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="subject">Betreff</label>
+                <input type="text" id="subject" name="subject" placeholder="Kurze Beschreibung des Kontakts">
+            </div>
+            
+            <div class="form-group">
+                <label for="notes">Notizen *</label>
+                <textarea id="notes" name="notes" rows="4" required placeholder="Detaillierte Notizen zu diesem Kontakt..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="contactTime">Kontaktzeit *</label>
+                <input type="datetime-local" id="contactTime" name="contact_time" required>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn-icon">💾</span>Speichern
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="hideForm()">
+                    <span class="btn-icon">❌</span>Abbrechen
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Contacts Table -->
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Kunde</th>
+                <th>Kanal</th>
+                <th>Betreff</th>
+                <th>Kontaktzeit</th>
+                <th>Notizen</th>
+                <th>Aktionen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for contact in contacts %}
+            <tr>
+                <td class="customer-name">
+                    {% if contact.customer %}
+                        {{ contact.customer.first_name }} {{ contact.customer.last_name }}
+                    {% else %}
+                        <span class="text-muted">Unbekannt</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="channel-badge channel-{{ contact.channel.lower().replace('ä', 'ae').replace('ö', 'oe').replace('ü', 'ue') if contact.channel else 'unknown' }}">
+                        {{ contact.channel or 'Unbekannt' }}
+                    </span>
+                </td>
+                <td class="subject">{{ contact.subject or '-' }}</td>
+                <td class="contact-time">{{ contact.contact_time.strftime('%d.%m.%Y %H:%M') if contact.contact_time else 'N/A' }}</td>
+                <td class="notes-preview">
+                    <div class="notes-text">{{ contact.notes[:100] }}{% if contact.notes and contact.notes|length > 100 %}...{% endif %}</div>
+                </td>
+                <td class="actions">
+                    <button class="btn btn-small btn-info" onclick="viewContact({{ contact.id }})">
+                        <span class="btn-icon">👁️</span>Anzeigen
+                    </button>
+                    <button class="btn btn-small btn-edit" onclick="editContact({{ contact.id }})">
+                        <span class="btn-icon">✏️</span>Bearbeiten
+                    </button>
+                    <button class="btn btn-small btn-danger" onclick="deleteContact({{ contact.id }}, '{{ contact.subject or 'Kontakt' }}')">
+                        <span class="btn-icon">🗑️</span>Löschen
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="empty-state">Keine Kontakte gefunden. Dokumentieren Sie den ersten Kundenkontakt!</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- View Contact Modal -->
+<div id="viewModal" class="modal" style="display: none;">
+    <div class="modal-content view-modal">
+        <div class="modal-header">
+            <h3 id="viewTitle">Kontakt Details</h3>
+            <button class="close-btn" onclick="hideViewModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="contact-detail">
+                <strong>Kunde:</strong> <span id="viewCustomer"></span>
+            </div>
+            <div class="contact-detail">
+                <strong>Kanal:</strong> <span id="viewChannel"></span>
+            </div>
+            <div class="contact-detail">
+                <strong>Betreff:</strong> <span id="viewSubject"></span>
+            </div>
+            <div class="contact-detail">
+                <strong>Kontaktzeit:</strong> <span id="viewTime"></span>
+            </div>
+            <div class="contact-detail">
+                <strong>Notizen:</strong>
+                <div id="viewNotes" class="notes-full"></div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button onclick="hideViewModal()" class="btn btn-secondary">Schließen</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h3>Kontakt löschen</h3>
+        <p id="deleteMessage">Möchten Sie diesen Kontakt wirklich löschen?</p>
+        <div class="modal-actions">
+            <button id="confirmDelete" class="btn btn-danger">Löschen</button>
+            <button onclick="hideDeleteModal()" class="btn btn-secondary">Abbrechen</button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Inherit base styles from customers.html and extend */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-xl);
+    flex-wrap: wrap;
+    gap: var(--space-md);
+}
+
+.page-header h1 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin: 0;
+    color: var(--text-primary);
+    font-family: var(--font-display);
+}
+
+.page-icon {
+    font-size: 1.5rem;
+}
+
+.flash-messages {
+    margin-bottom: var(--space-lg);
+}
+
+.flash-message {
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-sm);
+}
+
+.flash-success {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.form-container {
+    margin-bottom: var(--space-xl);
+}
+
+.form-card {
+    background: var(--bg-secondary);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius-lg);
+    padding: var(--space-xl);
+    box-shadow: var(--shadow-sm);
+}
+
+.form-card h3 {
+    margin-bottom: var(--space-lg);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-lg);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: var(--space-lg);
+}
+
+.form-group label {
+    font-weight: 600;
+    margin-bottom: var(--space-xs);
+    color: var(--text-primary);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: var(--space-md);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-solid);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.form-actions {
+    display: flex;
+    gap: var(--space-md);
+    justify-content: flex-start;
+}
+
+/* Buttons (inherit from previous styles) */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-md) var(--space-lg);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-family: var(--font-body);
+}
+
+.btn-primary {
+    background: var(--primary-solid);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.btn-secondary:hover {
+    background: var(--surface);
+}
+
+.btn-danger {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+}
+
+.btn-edit {
+    background: #f59e0b;
+    color: white;
+}
+
+.btn-edit:hover {
+    background: #d97706;
+}
+
+.btn-info {
+    background: #06b6d4;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #0891b2;
+}
+
+.btn-small {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.8rem;
+}
+
+.btn-icon {
+    font-size: 0.9rem;
+}
+
+/* Table Styling (inherit and extend) */
+.table-container {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-primary);
+}
+
+.data-table thead {
+    background: var(--bg-tertiary);
+}
+
+.data-table th {
+    padding: var(--space-lg);
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    font-family: var(--font-display);
+}
+
+.data-table td {
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    color: var(--text-secondary);
+    vertical-align: middle;
+}
+
+.data-table tr:hover {
+    background: var(--surface);
+}
+
+.customer-name {
+    font-weight: 600;
+    color: var(--text-primary) !important;
+}
+
+.subject {
+    font-weight: 500;
+    color: var(--text-primary) !important;
+}
+
+.contact-time {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-muted) !important;
+}
+
+.notes-preview {
+    max-width: 250px;
+}
+
+.notes-text {
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: var(--text-secondary);
+}
+
+.actions {
+    display: flex;
+    gap: var(--space-xs);
+    flex-wrap: wrap;
+}
+
+.empty-state {
+    text-align: center;
+    color: var(--text-muted) !important;
+    font-style: italic;
+    padding: var(--space-xl) !important;
+}
+
+/* Channel Badges */
+.channel-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.channel-telefon {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.channel-e-mail {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.channel-meeting {
+    background: rgba(168, 85, 247, 0.2);
+    color: #a855f7;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.channel-chat {
+    background: rgba(251, 191, 36, 0.2);
+    color: #f59e0b;
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.channel-unknown {
+    background: rgba(107, 114, 128, 0.2);
+    color: #6b7280;
+    border: 1px solid rgba(107, 114, 128, 0.3);
+}
+
+/* Modal Styling */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--bg-primary);
+    padding: var(--space-xl);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-lg);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.view-modal {
+    max-width: 600px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-lg);
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.close-btn:hover {
+    background: var(--surface);
+    color: var(--text-primary);
+}
+
+.modal-body {
+    margin-bottom: var(--space-lg);
+}
+
+.contact-detail {
+    margin-bottom: var(--space-md);
+}
+
+.contact-detail strong {
+    color: var(--text-primary);
+    display: inline-block;
+    min-width: 100px;
+}
+
+.notes-full {
+    margin-top: var(--space-xs);
+    padding: var(--space-md);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.modal-actions {
+    display: flex;
+    gap: var(--space-md);
+    justify-content: flex-end;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: var(--space-md);
+    }
+    
+    .data-table {
+        font-size: 0.8rem;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: var(--space-sm);
+    }
+    
+    .actions {
+        flex-direction: column;
+    }
+    
+    .notes-preview {
+        max-width: 150px;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: var(--space-md);
+    }
+}
+</style>
+
+<script>
+let editingContactId = null;
+let contactsData = {{ contacts_json|safe }};
+
+function showAddForm() {
+    document.getElementById('formTitle').textContent = 'Neuen Kontakt dokumentieren';
+    document.getElementById('contactId').value = '';
+    document.getElementById('customerId').value = '';
+    document.getElementById('channel').value = '';
+    document.getElementById('subject').value = '';
+    document.getElementById('notes').value = '';
+    // Set current datetime
+    const now = new Date();
+    const offsetTime = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
+    document.getElementById('contactTime').value = offsetTime.toISOString().slice(0, 16);
+    document.getElementById('contactForm').style.display = 'block';
+    editingContactId = null;
+}
+
+function editContact(id) {
+    const contact = contactsData.find(c => c.id == id);
+    if (!contact) return;
+    
+    document.getElementById('formTitle').textContent = 'Kontakt bearbeiten';
+    document.getElementById('contactId').value = id;
+    document.getElementById('customerId').value = contact.customer_id;
+    document.getElementById('channel').value = contact.channel;
+    document.getElementById('subject').value = contact.subject || '';
+    document.getElementById('notes').value = contact.notes || '';
+    document.getElementById('contactTime').value = contact.contact_time;
+    document.getElementById('contactForm').style.display = 'block';
+    editingContactId = id;
+}
+
+function viewContact(id) {
+    const contact = contactsData.find(c => c.id == id);
+    if (!contact) return;
+    
+    document.getElementById('viewCustomer').textContent = contact.customer_name || 'Unbekannt';
+    document.getElementById('viewChannel').innerHTML = `<span class="channel-badge channel-${(contact.channel || 'unknown').toLowerCase().replace(/[äöü]/g, function(match) { 
+        return {'ä':'ae','ö':'oe','ü':'ue'}[match] || match; 
+    })}">${contact.channel || 'Unbekannt'}</span>`;
+    document.getElementById('viewSubject').textContent = contact.subject || '-';
+    document.getElementById('viewTime').textContent = contact.contact_time_formatted || 'N/A';
+    document.getElementById('viewNotes').textContent = contact.notes || 'Keine Notizen';
+    document.getElementById('viewModal').style.display = 'flex';
+}
+
+function hideForm() {
+    document.getElementById('contactForm').style.display = 'none';
+    editingContactId = null;
+}
+
+function hideViewModal() {
+    document.getElementById('viewModal').style.display = 'none';
+}
+
+function deleteContact(id, subject) {
+    document.getElementById('deleteMessage').textContent = `Möchten Sie den Kontakt "${subject}" wirklich löschen?`;
+    document.getElementById('confirmDelete').onclick = function() {
+        window.location.href = `/contacts/delete/${id}`;
+    };
+    document.getElementById('deleteModal').style.display = 'flex';
+}
+
+function hideDeleteModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+}
+
+// Hide flash messages after 5 seconds
+setTimeout(function() {
+    const flashMessages = document.querySelectorAll('.flash-message');
+    flashMessages.forEach(msg => {
+        msg.style.opacity = '0';
+        setTimeout(() => msg.remove(), 300);
+    });
+}, 5000);
+</script>
+
+{% endblock %}

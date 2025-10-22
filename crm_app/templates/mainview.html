@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Welcome Section -->
+<div class="welcome-section">
+  <h2>Willkommen zurück, {{ username }}!</h2>
+  <p>Hier ist Ihre CRM-Übersicht für heute</p>
+</div>
+
+<!-- Dashboard Tables -->
+<div class="dashboard-tables">
+  <!-- Recent Customers Table -->
+  <div class="table-section">
+    <h3><span class="table-icon">👥</span>Neueste Kunden</h3>
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Firma</th>
+            <th>E-Mail</th>
+            <th>Telefon</th>
+            <th>Erstellt am</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for customer in recent_customers %}
+          <tr>
+            <td class="company-name">{{ customer.first_name }} {{ customer.last_name }}</td>
+            <td class="email">{{ customer.email }}</td>
+            <td class="phone">{{ customer.phone }}</td>
+            <td class="date">{{ customer.created_at.strftime('%d.%m.%Y') if customer.created_at else 'N/A' }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="empty-state">Keine Kunden gefunden</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent Orders Table -->
+  <div class="table-section">
+    <h3><span class="table-icon">📦</span>Letzte Bestellungen</h3>
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Kunde</th>
+            <th>Bestelldatum</th>
+            <th>Status</th>
+            <th>Betrag</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in recent_orders %}
+          <tr>
+            <td class="company-name">{{ order.customer.first_name }} {{ order.customer.last_name if order.customer else 'Unbekannt' }}</td>
+            <td class="date">{{ order.order_date.strftime('%d.%m.%Y') if order.order_date else 'N/A' }}</td>
+            <td><span class="status-badge status-{{ order.status.lower() if order.status else 'unknown' }}">{{ order.status or 'Unbekannt' }}</span></td>
+            <td class="amount">€{{ "{:,.2f}".format(order.total_amount) if order.total_amount else '0,00' }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="empty-state">Keine Bestellungen gefunden</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Actions Grid -->
+<div class="quick-actions">
+  <h3>Schnellzugriff</h3>
+  <div class="action-grid">
+    <a href="{{ url_for('customers') }}" class="action-card">
+      <div class="action-icon">👥</div>
+      <h4>Kontakte verwalten</h4>
+      <p>Neue Kunden hinzufügen und bearbeiten</p>
+    </a>
+    
+    <a href="{{ url_for('contacts') }}" class="action-card">
+      <div class="action-icon">�</div>
+      <h4>Kundenkontakte dokumentieren</h4>
+      <p>Kommunikation und Notizen verwalten</p>
+    </a>
+  </div>
+</div>
+
+<style>
+/* Welcome Section */
+.welcome-section {
+  text-align: center;
+  margin-bottom: var(--space-xl);
+}
+
+.welcome-section h2 {
+  background: var(--primary);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 2.5rem;
+  margin-bottom: var(--space-sm);
+}
+
+.welcome-section p {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+}
+
+/* Dashboard Tables */
+.dashboard-tables {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.table-section {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
+}
+
+.table-section h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+  font-size: 1.4rem;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+}
+
+.table-icon {
+  font-size: 1.5rem;
+}
+
+.table-container {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-primary);
+  font-size: 0.9rem;
+}
+
+.data-table thead {
+  background: var(--bg-tertiary);
+}
+
+.data-table th {
+  padding: var(--space-md);
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  font-family: var(--font-display);
+}
+
+.data-table td {
+  padding: var(--space-md);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+
+.data-table tr:hover {
+  background: var(--surface);
+}
+
+.company-name {
+  font-weight: 600;
+  color: var(--text-primary) !important;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.email {
+  color: var(--primary-solid) !important;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.phone {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.date {
+  color: var(--text-muted) !important;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.amount {
+  font-weight: 700;
+  color: var(--success) !important;
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-offen {
+  background: rgba(251, 191, 36, 0.2);
+  color: #f59e0b;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.status-bezahlt {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.status-storniert {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.status-unknown {
+  background: rgba(107, 114, 128, 0.2);
+  color: #6b7280;
+  border: 1px solid rgba(107, 114, 128, 0.3);
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-muted) !important;
+  font-style: italic;
+  padding: var(--space-xl) !important;
+}
+
+/* Quick Actions */
+.quick-actions {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  grid-column: 1 / -1;
+}
+
+.quick-actions h3 {
+  text-align: center;
+  margin-bottom: var(--space-lg);
+  background: var(--secondary);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--space-md);
+}
+
+.action-card {
+  background: var(--surface);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-solid);
+}
+
+.action-card .action-icon {
+  font-size: 2rem;
+  margin-bottom: var(--space-sm);
+  display: block;
+}
+
+.action-card h4 {
+  font-size: 1.1rem;
+  margin-bottom: var(--space-xs);
+  color: var(--text-primary);
+}
+
+.action-card p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .welcome-section h2 {
+    font-size: 2rem;
+  }
+  
+  .dashboard-tables {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
+  }
+  
+  .data-table {
+    font-size: 0.8rem;
+  }
+  
+  .data-table th,
+  .data-table td {
+    padding: var(--space-sm);
+  }
+  
+  .company-name {
+    max-width: 150px;
+  }
+  
+  .action-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+{% endblock %}

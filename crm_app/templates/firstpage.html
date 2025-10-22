@@ -1,4 +1,382 @@
 {% extends "base.html" %}
 {% block content %}
 
+<!-- Hero Section -->
+<div class="hero-section">
+  <div class="hero-content">
+    <h1 class="font-display hero-title">Willkommen im CRM System</h1>
+    <p class="hero-subtitle">Verwalten Sie Ihre Kunden, Bestellungen und Kontakte effizient und modern</p>
+    <div class="hero-stats">
+      <div class="stat-card">
+        <div class="stat-number font-display">{{ customer_count or 0 }}</div>
+        <div class="stat-label">Kunden</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number font-display">{{ order_count or 0 }}</div>
+        <div class="stat-label">Bestellungen</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number font-display">{{ contact_count or 0 }}</div>
+        <div class="stat-label">Kontakte</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="quick-actions">
+  <h2>Schnellzugriff</h2>
+  <div class="action-grid">
+    <a href="{{ url_for('customers') }}" class="action-card">
+      <div class="action-icon">👥</div>
+      <h3>Kunden verwalten</h3>
+      <p>Neue Kunden hinzufügen, bearbeiten und verwalten</p>
+      <span class="action-arrow">→</span>
+    </a>
+    
+    <a href="{{ url_for('orders') }}" class="action-card">
+      <div class="action-icon">📦</div>
+      <h3>Bestellungen</h3>
+      <p>Bestellungen einsehen, erstellen und bearbeiten</p>
+      <span class="action-arrow">→</span>
+    </a>
+    
+    <a href="{{ url_for('products') }}" class="action-card">
+      <div class="action-icon">🛍️</div>
+      <h3>Produkte</h3>
+      <p>Produktkatalog verwalten und Preise anpassen</p>
+      <span class="action-arrow">→</span>
+    </a>
+    
+    <a href="{{ url_for('contacts') }}" class="action-card">
+      <div class="action-icon">📞</div>
+      <h3>Kontakte</h3>
+      <p>Kundenkontakte dokumentieren und nachverfolgen</p>
+      <span class="action-arrow">→</span>
+    </a>
+    
+    <a href="{{ url_for('users') }}" class="action-card">
+      <div class="action-icon">👤</div>
+      <h3>Benutzer</h3>
+      <p>Systembenutzer und Berechtigungen verwalten</p>
+      <span class="action-arrow">→</span>
+    </a>
+    
+    <a href="{{ url_for('mainview') }}" class="action-card">
+      <div class="action-icon">📊</div>
+      <h3>Dashboard</h3>
+      <p>Detaillierte Übersicht und Statistiken</p>
+      <span class="action-arrow">→</span>
+    </a>
+  </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="recent-activity">
+  <h2>Letzte Aktivitäten</h2>
+  <div class="activity-list">
+    <div class="activity-item">
+      <div class="activity-icon">👥</div>
+      <div class="activity-content">
+        <h4>Neuer Kunde registriert</h4>
+        <p class="activity-time">Vor 2 Stunden</p>
+      </div>
+    </div>
+    
+    <div class="activity-item">
+      <div class="activity-icon">📦</div>
+      <div class="activity-content">
+        <h4>Bestellung #1337 erstellt</h4>
+        <p class="activity-time">Vor 4 Stunden</p>
+      </div>
+    </div>
+    
+    <div class="activity-item">
+      <div class="activity-icon">📞</div>
+      <div class="activity-content">
+        <h4>Kundenkontakt dokumentiert</h4>
+        <p class="activity-time">Vor 6 Stunden</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- System Info -->
+<div class="system-info">
+  <h3>System Information</h3>
+  <div class="info-grid">
+    <div class="info-item">
+      <span class="info-label">Version:</span>
+      <span class="info-value font-mono">1.0.0</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Letztes Update:</span>
+      <span class="info-value">{{ current_date or "Heute" }}</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Aktive Benutzer:</span>
+      <span class="info-value">{{ active_users or 1 }}</span>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Hero Section Styles */
+.hero-section {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xl) var(--space-lg);
+  margin-bottom: var(--space-xl);
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hero-title {
+  font-size: 3.5rem;
+  margin-bottom: var(--space-md);
+  background: var(--primary);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-subtitle {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xl);
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.hero-stats {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  background: var(--surface);
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  min-width: 120px;
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: 900;
+  background: var(--accent);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: block;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: var(--space-xs);
+}
+
+/* Quick Actions */
+.quick-actions {
+  margin-bottom: var(--space-xl);
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-lg);
+  margin-top: var(--space-lg);
+}
+
+.action-card {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  display: block;
+}
+
+.action-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  transition: left 0.5s ease;
+}
+
+.action-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary-solid);
+}
+
+.action-card:hover::before {
+  left: 100%;
+}
+
+.action-icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-md);
+  display: block;
+}
+
+.action-card h3 {
+  font-size: 1.3rem;
+  margin-bottom: var(--space-sm);
+  color: var(--text-primary);
+}
+
+.action-card p {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-md);
+  line-height: 1.5;
+}
+
+.action-arrow {
+  font-size: 1.5rem;
+  color: var(--accent-solid);
+  font-weight: bold;
+  position: absolute;
+  top: var(--space-lg);
+  right: var(--space-lg);
+  transition: transform 0.3s ease;
+}
+
+.action-card:hover .action-arrow {
+  transform: translateX(5px);
+}
+
+/* Recent Activity */
+.recent-activity {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: var(--space-xl);
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.activity-icon {
+  font-size: 1.5rem;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.activity-content h4 {
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+  font-size: 1rem;
+}
+
+.activity-time {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* System Info */
+.system-info {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.info-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.info-value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 2.5rem;
+  }
+  
+  .hero-stats {
+    gap: var(--space-md);
+  }
+  
+  .stat-card {
+    min-width: 100px;
+    padding: var(--space-md);
+  }
+  
+  .action-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .action-card {
+    padding: var(--space-md);
+  }
+  
+  .action-icon {
+    font-size: 2.5rem;
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
 {% endblock %}

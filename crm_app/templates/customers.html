@@ -1,20 +1,467 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>{{ customer.name }}</h2>
-<p>Email: {{ customer.email }}</p>
-<p>Gesamtumsatz: {{ total }} €</p>
 
-<h3>Letzte Bestellungen</h3>
-<ul>
-{% for o in orders %}
-  <li>{{ o.date }} – {{ o.amount }} €</li>
-{% endfor %}
-</ul>
+<div class="page-header">
+    <h1><span class="page-icon">👥</span>Kontakte verwalten</h1>
+    <button class="btn btn-primary" onclick="showAddForm()">
+        <span class="btn-icon">➕</span>Neuen Kontakt hinzufügen
+    </button>
+</div>
 
-<h3>Letzte Kontakte</h3>
-<ul>
-{% for c in contacts %}
-  <li>{{ c.date }} – {{ c.type }} – {{ c.notes }}</li>
-{% endfor %}
-</ul>
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <div class="flash-messages">
+      {% for message in messages %}
+        <div class="flash-message flash-success">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<!-- Add/Edit Customer Form -->
+<div id="customerForm" class="form-container" style="display: none;">
+    <div class="form-card">
+        <h3 id="formTitle">Neuen Kontakt hinzufügen</h3>
+        <form method="POST" action="{{ url_for('customers') }}">
+            <input type="hidden" id="customerId" name="customer_id" value="">
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="firstName">Vorname *</label>
+                    <input type="text" id="firstName" name="first_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="lastName">Nachname *</label>
+                    <input type="text" id="lastName" name="last_name" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="email">E-Mail</label>
+                    <input type="email" id="email" name="email">
+                </div>
+                <div class="form-group">
+                    <label for="phone">Telefon</label>
+                    <input type="tel" id="phone" name="phone">
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn-icon">💾</span>Speichern
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="hideForm()">
+                    <span class="btn-icon">❌</span>Abbrechen
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Customers Table -->
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>E-Mail</th>
+                <th>Telefon</th>
+                <th>Erstellt am</th>
+                <th>Aktionen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for customer in customers %}
+            <tr>
+                <td class="customer-name">{{ customer.first_name }} {{ customer.last_name }}</td>
+                <td class="email">{{ customer.email or '-' }}</td>
+                <td class="phone">{{ customer.phone or '-' }}</td>
+                <td class="date">{{ customer.created_at.strftime('%d.%m.%Y') if customer.created_at else 'N/A' }}</td>
+                <td class="actions">
+                    <button class="btn btn-small btn-edit" onclick="editCustomer({{ customer.id }}, '{{ customer.first_name }}', '{{ customer.last_name }}', '{{ customer.email or '' }}', '{{ customer.phone or '' }}')">
+                        <span class="btn-icon">✏️</span>Bearbeiten
+                    </button>
+                    <button class="btn btn-small btn-danger" onclick="deleteCustomer({{ customer.id }}, '{{ customer.first_name }} {{ customer.last_name }}')">
+                        <span class="btn-icon">🗑️</span>Löschen
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="empty-state">Keine Kontakte gefunden. Fügen Sie den ersten Kontakt hinzu!</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h3>Kontakt löschen</h3>
+        <p id="deleteMessage">Möchten Sie diesen Kontakt wirklich löschen?</p>
+        <div class="modal-actions">
+            <button id="confirmDelete" class="btn btn-danger">Löschen</button>
+            <button onclick="hideDeleteModal()" class="btn btn-secondary">Abbrechen</button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Page Layout */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-xl);
+    flex-wrap: wrap;
+    gap: var(--space-md);
+}
+
+.page-header h1 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin: 0;
+    color: var(--text-primary);
+    font-family: var(--font-display);
+}
+
+.page-icon {
+    font-size: 1.5rem;
+}
+
+/* Flash Messages */
+.flash-messages {
+    margin-bottom: var(--space-lg);
+}
+
+.flash-message {
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-sm);
+}
+
+.flash-success {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+/* Form Styling */
+.form-container {
+    margin-bottom: var(--space-xl);
+}
+
+.form-card {
+    background: var(--bg-secondary);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius-lg);
+    padding: var(--space-xl);
+    box-shadow: var(--shadow-sm);
+}
+
+.form-card h3 {
+    margin-bottom: var(--space-lg);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-lg);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 600;
+    margin-bottom: var(--space-xs);
+    color: var(--text-primary);
+}
+
+.form-group input {
+    padding: var(--space-md);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--primary-solid);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-actions {
+    display: flex;
+    gap: var(--space-md);
+    justify-content: flex-start;
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-md) var(--space-lg);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-family: var(--font-body);
+}
+
+.btn-primary {
+    background: var(--primary-solid);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.btn-secondary:hover {
+    background: var(--surface);
+}
+
+.btn-danger {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+}
+
+.btn-edit {
+    background: #f59e0b;
+    color: white;
+}
+
+.btn-edit:hover {
+    background: #d97706;
+}
+
+.btn-small {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.8rem;
+}
+
+.btn-icon {
+    font-size: 0.9rem;
+}
+
+/* Table Styling */
+.table-container {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-primary);
+}
+
+.data-table thead {
+    background: var(--bg-tertiary);
+}
+
+.data-table th {
+    padding: var(--space-lg);
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    font-family: var(--font-display);
+}
+
+.data-table td {
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    color: var(--text-secondary);
+    vertical-align: middle;
+}
+
+.data-table tr:hover {
+    background: var(--surface);
+}
+
+.customer-name {
+    font-weight: 600;
+    color: var(--text-primary) !important;
+}
+
+.email {
+    color: var(--primary-solid) !important;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+}
+
+.phone {
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+}
+
+.date {
+    color: var(--text-muted) !important;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+}
+
+.actions {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+.empty-state {
+    text-align: center;
+    color: var(--text-muted) !important;
+    font-style: italic;
+    padding: var(--space-xl) !important;
+}
+
+/* Modal Styling */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--bg-primary);
+    padding: var(--space-xl);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-lg);
+    max-width: 400px;
+    width: 90%;
+}
+
+.modal-content h3 {
+    margin-bottom: var(--space-md);
+    color: var(--text-primary);
+}
+
+.modal-content p {
+    margin-bottom: var(--space-lg);
+    color: var(--text-secondary);
+}
+
+.modal-actions {
+    display: flex;
+    gap: var(--space-md);
+    justify-content: flex-end;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: var(--space-md);
+    }
+    
+    .data-table {
+        font-size: 0.8rem;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: var(--space-sm);
+    }
+    
+    .actions {
+        flex-direction: column;
+    }
+}
+</style>
+
+<script>
+let editingCustomerId = null;
+
+function showAddForm() {
+    document.getElementById('formTitle').textContent = 'Neuen Kontakt hinzufügen';
+    document.getElementById('customerId').value = '';
+    document.getElementById('firstName').value = '';
+    document.getElementById('lastName').value = '';
+    document.getElementById('email').value = '';
+    document.getElementById('phone').value = '';
+    document.getElementById('customerForm').style.display = 'block';
+    editingCustomerId = null;
+}
+
+function editCustomer(id, firstName, lastName, email, phone) {
+    document.getElementById('formTitle').textContent = 'Kontakt bearbeiten';
+    document.getElementById('customerId').value = id;
+    document.getElementById('firstName').value = firstName;
+    document.getElementById('lastName').value = lastName;
+    document.getElementById('email').value = email;
+    document.getElementById('phone').value = phone;
+    document.getElementById('customerForm').style.display = 'block';
+    editingCustomerId = id;
+}
+
+function hideForm() {
+    document.getElementById('customerForm').style.display = 'none';
+    editingCustomerId = null;
+}
+
+function deleteCustomer(id, name) {
+    document.getElementById('deleteMessage').textContent = `Möchten Sie "${name}" wirklich löschen?`;
+    document.getElementById('confirmDelete').onclick = function() {
+        window.location.href = `/customers/delete/${id}`;
+    };
+    document.getElementById('deleteModal').style.display = 'flex';
+}
+
+function hideDeleteModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+}
+
+// Hide flash messages after 5 seconds
+setTimeout(function() {
+    const flashMessages = document.querySelectorAll('.flash-message');
+    flashMessages.forEach(msg => {
+        msg.style.opacity = '0';
+        setTimeout(() => msg.remove(), 300);
+    });
+}, 5000);
+</script>
+
 {% endblock %}
