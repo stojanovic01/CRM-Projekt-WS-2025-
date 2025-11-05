@@ -1,0 +1,9 @@
+# Requirements for CRM-Projekt-WS-2025-
+# Install into a virtual environment: python -m venv .venv ; .\.venv\Scripts\Activate.ps1 ; pip install -r requirements.txt
+
+Flask>=2.0
+Flask-SQLAlchemy>=2.5
+
+# Notes:
+# - SQLite is used as the database backend (built into Python), so no additional DB driver is required.
+# - If you plan to use a different database (Postgres/MySQL), add the appropriate DB driver (psycopg2, mysqlclient, etc.).
