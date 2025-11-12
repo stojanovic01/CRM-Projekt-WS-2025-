@@ -80,6 +80,9 @@
                 <td class="phone">{{ customer.phone or '-' }}</td>
                 <td class="date">{{ customer.created_at.strftime('%d.%m.%Y') if customer.created_at else 'N/A' }}</td>
                 <td class="actions">
+                    <a class="btn btn-small btn-info" href="{{ url_for('customer_detail', customer_id=customer.id) }}">
+                        <span class="btn-icon">👁️</span>Ansehen
+                    </a>
                     <button class="btn btn-small btn-edit" onclick="editCustomer({{ customer.id }}, '{{ customer.first_name }}', '{{ customer.last_name }}', '{{ customer.email or '' }}', '{{ customer.phone or '' }}')">
                         <span class="btn-icon">✏️</span>Bearbeiten
                     </button>

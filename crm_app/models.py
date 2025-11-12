@@ -15,7 +15,7 @@ class Customer(db.Model):
     created_at = db.Column(DateTime, default=datetime.utcnow, nullable=False)
 
     orders = db.relationship("Order", back_populates="customer", cascade="all, delete-orphan")
-    contacts = db.relationship("Contact", back_populates="customer", cascade="all, delete-orphan")
+    conversations = db.relationship("Conversation", back_populates="customer", cascade="all, delete-orphan")
 
 class Order(db.Model):
     __tablename__ = "orders"
@@ -57,25 +57,25 @@ class Product(db.Model):
 
     items = db.relationship("OrderItem", back_populates="product")
 
-class Contact(db.Model):
-    __tablename__ = "contacts"
+class Conversation(db.Model):
+    __tablename__ = "conversations"
     id = db.Column(Integer, primary_key=True, autoincrement=True)
     customer_id = db.Column(Integer, ForeignKey("customers.id", ondelete="CASCADE"), nullable=False)
     user_id = db.Column(Integer, ForeignKey("users.id"))
     channel = db.Column(
-        SAEnum("Telefon", "E-Mail", "Meeting", "Chat", name="contact_channel", native_enum=False, create_constraint=True, validate_strings=True),
+        SAEnum("Telefon", "E-Mail", "Meeting", "Chat", name="conversation_channel", native_enum=False, create_constraint=True, validate_strings=True),
         nullable=False,
     )
     subject = db.Column(String(255))
     notes = db.Column(Text)
-    contact_time = db.Column(DateTime, nullable=False)
+    conversation_time = db.Column(DateTime, nullable=False)
 
-    customer = db.relationship("Customer", back_populates="contacts")
-    user = db.relationship("User", back_populates="contacts")
+    customer = db.relationship("Customer", back_populates="conversations")
+    user = db.relationship("User", back_populates="conversations")
 
     __table_args__ = (
-        Index("idx_contacts_time", "contact_time"),
-        Index("idx_contacts_customer_time", "customer_id", "contact_time"),
+        Index("idx_conversations_time", "conversation_time"),
+        Index("idx_conversations_customer_time", "customer_id", "conversation_time"),
     )
 
 class User(db.Model):
@@ -90,4 +90,4 @@ class User(db.Model):
         default="Schüler",
     )
 
-    contacts = db.relationship("Contact", back_populates="user")
+    conversations = db.relationship("Conversation", back_populates="user")

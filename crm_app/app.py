@@ -1,13 +1,18 @@
 # app.py
 from flask import Flask, render_template, request, redirect, url_for, flash, session
+import os
 import hashlib
 from functools import wraps
 from datetime import datetime, timedelta
-from models import db, User, Customer, Order, Product, Contact
+from models import db, User, Customer, Order, Product, Conversation
 from views.customers import customers_bp
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///crm.db'
+# Use a deterministic DB path inside the app instance folder so the app and
+# seed scripts always talk to the same sqlite file regardless of current cwd.
+instance_dir = os.path.join(app.root_path, 'instance')
+os.makedirs(instance_dir, exist_ok=True)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(instance_dir, 'crm.db')
 app.config['SECRET_KEY'] = 'dev-secret-change-in-production'  # für flash messages
 db.init_app(app)
 
@@ -127,19 +132,19 @@ def create_sample_data():
             'Kunde interessiert sich für Zusatzmodule. Cross-selling Potenzial vorhanden.'
         ]
         
-        for i in range(15):  # 15 Kontakte
+        for i in range(15):  # 15 Konversationen
             customer = random.choice(customers)
             contact_time = datetime.now() - timedelta(days=random.randint(0, 90), hours=random.randint(0, 23))
-            
-            contact = Contact(
+
+            conversation = Conversation(
                 customer_id=customer.id,
                 user_id=admin_user.id,
                 channel=random.choice(channels),
                 subject=random.choice(contact_subjects),
                 notes=random.choice(sample_notes),
-                contact_time=contact_time
+                conversation_time=contact_time
             )
-            db.session.add(contact)
+            db.session.add(conversation)
     
     db.session.commit()
     print("Testdaten erfolgreich erstellt: 8 Kunden, 5 Produkte, 12 Bestellungen, 15 Kontakte")
@@ -195,7 +200,7 @@ def logout():
 @app.route('/mainview')
 @login_required
 def mainview():
-    from models import Customer, Order, Contact
+    from models import Customer, Order, Conversation
     from datetime import datetime
     
     # Neueste 5 Kunden (nach Erstellungsdatum)
@@ -257,6 +262,70 @@ def customers():
     customers_list = Customer.query.order_by(Customer.created_at.desc()).all()
     return render_template('customers.html', customers=customers_list)
 
+
+@app.route('/customers/<int:customer_id>')
+@login_required
+def customer_detail(customer_id):
+    from datetime import datetime, timedelta
+    from sqlalchemy import func
+
+    customer = Customer.query.get_or_404(customer_id)
+
+    # Date range filter for KPIs and order list (optional)
+    start_str = request.args.get('start')
+    end_str = request.args.get('end')
+    start_dt = None
+    end_dt = None
+    try:
+        if start_str:
+            start_dt = datetime.fromisoformat(start_str)
+        if end_str:
+            # parse end date and set to end of day
+            end_dt = datetime.fromisoformat(end_str)
+            end_dt = end_dt + timedelta(hours=23, minutes=59, seconds=59)
+    except Exception:
+        start_dt = None
+        end_dt = None
+
+    # Orders for this customer (apply date filter if present)
+    orders_query = Order.query.filter_by(customer_id=customer.id)
+    if start_dt:
+        orders_query = orders_query.filter(Order.order_date >= start_dt)
+    if end_dt:
+        orders_query = orders_query.filter(Order.order_date <= end_dt)
+    recent_orders = orders_query.order_by(Order.order_date.desc()).limit(10).all()
+
+    # KPIs: total revenue (all time or in date range) and revenue last calendar year
+    total_query = db.session.query(func.coalesce(func.sum(Order.total_amount), 0)).filter(Order.customer_id == customer.id)
+    if start_dt:
+        total_query = total_query.filter(Order.order_date >= start_dt)
+    if end_dt:
+        total_query = total_query.filter(Order.order_date <= end_dt)
+    total_revenue = float(total_query.scalar() or 0)
+
+    # Revenue for last calendar year
+    now = datetime.now()
+    last_year_start = datetime(now.year - 1, 1, 1)
+    last_year_end = datetime(now.year - 1, 12, 31, 23, 59, 59)
+    last_year_query = db.session.query(func.coalesce(func.sum(Order.total_amount), 0)).filter(Order.customer_id == customer.id, Order.order_date >= last_year_start, Order.order_date <= last_year_end)
+    revenue_last_year = float(last_year_query.scalar() or 0)
+
+    # Last conversations (timeline, newest first)
+    conversations_list = Conversation.query.filter_by(customer_id=customer.id).order_by(Conversation.conversation_time.desc()).limit(10).all()
+
+    # Last conversation summary (for header)
+    last_conversation = Conversation.query.filter_by(customer_id=customer.id).order_by(Conversation.conversation_time.desc()).first()
+
+    return render_template('customer_detail.html',
+                           customer=customer,
+                           recent_orders=recent_orders,
+                           conversations_list=conversations_list,
+                           total_revenue=total_revenue,
+                           revenue_last_year=revenue_last_year,
+                           last_conversation=last_conversation,
+                           start=start_str,
+                           end=end_str)
+
 @app.route('/customers/delete/<int:customer_id>')
 @login_required
 def delete_customer(customer_id):
@@ -272,12 +341,12 @@ def delete_customer(customer_id):
     
     return redirect(url_for('customers'))
 
-@app.route('/contacts', methods=['GET', 'POST'])
+@app.route('/conversations', methods=['GET', 'POST'])
 @login_required
-def contacts():
+def conversations():
     if request.method == 'POST':
         # Add or edit contact
-        contact_id = request.form.get('contact_id')
+        conversation_id = request.form.get('contact_id')
         customer_id = request.form.get('customer_id')
         channel = request.form.get('channel')
         subject = request.form.get('subject', '').strip() or None
@@ -285,50 +354,87 @@ def contacts():
         contact_time_str = request.form.get('contact_time')
         
         if not customer_id or not channel or not notes or not contact_time_str:
-            flash('Kunde, Kanal, Notizen und Kontaktzeit sind erforderlich')
-            return redirect(url_for('contacts'))
-        
+            flash('Kunde, Kanal, Notizen und Konversationszeit sind erforderlich')
+            return redirect(url_for('conversations'))
+
         try:
             # Parse contact time
             contact_time = datetime.fromisoformat(contact_time_str.replace('T', ' '))
-            
+
             # Get current user ID
             current_user = User.query.filter_by(name=session.get('username')).first()
             user_id = current_user.id if current_user else None
-            
-            if contact_id:  # Edit existing
-                contact = Contact.query.get_or_404(contact_id)
-                contact.customer_id = customer_id
-                contact.channel = channel
-                contact.subject = subject
-                contact.notes = notes
-                contact.contact_time = contact_time
-                flash('Kontakt wurde erfolgreich aktualisiert')
+
+            if conversation_id:  # Edit existing
+                conversation = Conversation.query.get_or_404(conversation_id)
+                conversation.customer_id = customer_id
+                conversation.channel = channel
+                conversation.subject = subject
+                conversation.notes = notes
+                conversation.conversation_time = contact_time
+                flash('Konversation wurde erfolgreich aktualisiert')
             else:  # Add new
-                contact = Contact(
+                conversation = Conversation(
                     customer_id=customer_id,
                     user_id=user_id,
                     channel=channel,
                     subject=subject,
                     notes=notes,
-                    contact_time=contact_time
+                    conversation_time=contact_time
                 )
-                db.session.add(contact)
-                flash('Neuer Kontakt wurde erfolgreich dokumentiert')
-            
+                db.session.add(conversation)
+                flash('Neue Konversation wurde erfolgreich dokumentiert')
+
             db.session.commit()
         except Exception as e:
             db.session.rollback()
             flash(f'Fehler beim Speichern: {str(e)}')
-        
-        return redirect(url_for('contacts'))
+
+        return redirect(url_for('conversations'))
     
     # GET request - show all contacts
     import json
-    
-    contacts_list = Contact.query.order_by(Contact.contact_time.desc()).all()
+
+    # Optionaler Filter per Kanal (channel), Suche (q) und Sortierung (order)
+    selected_channel = request.args.get('channel', None)
+    search_q = request.args.get('q', None)
+    order = request.args.get('order', 'desc')  # 'desc' (default) oder 'asc'
+
+    # Basisquery
+    query = Conversation.query
+    # apply channel filter
+    if selected_channel:
+        query = query.filter_by(channel=selected_channel)
+
+    # apply full-text-ish search across customer name, subject, notes and channel
+    if search_q:
+        # Use cast to string for enum column before doing ilike to avoid SQLAlchemy Enum
+        # lookup/validation errors when the parameter contains wildcard patterns.
+        from sqlalchemy import or_, cast, String
+        q_like = f"%{search_q}%"
+        # join Customer to allow searching by name
+        query = query.join(Customer).filter(
+            or_(
+                Customer.first_name.ilike(q_like),
+                Customer.last_name.ilike(q_like),
+                Conversation.subject.ilike(q_like),
+                Conversation.notes.ilike(q_like),
+                cast(Conversation.channel, String).ilike(q_like),
+            )
+        )
+
+    # Sortierung nach Kontaktzeit (default: neueste zuerst)
+    if order == 'asc':
+        contacts_list = query.order_by(Conversation.conversation_time.asc()).all()
+    else:
+        contacts_list = query.order_by(Conversation.conversation_time.desc()).all()
+
     customers_list = Customer.query.order_by(Customer.first_name, Customer.last_name).all()
-    
+
+    # Liste vorhandener Kanäle für das Filter-Dropdown (aus DB)
+    channels_raw = db.session.query(Conversation.channel).distinct().all()
+    channels_list = [c[0] for c in channels_raw if c[0]]
+
     # Prepare JSON data for JavaScript
     contacts_json = []
     for contact in contacts_list:
@@ -339,32 +445,66 @@ def contacts():
             'channel': contact.channel,
             'subject': contact.subject,
             'notes': contact.notes,
-            'contact_time': contact.contact_time.isoformat() if contact.contact_time else None,
-            'contact_time_formatted': contact.contact_time.strftime('%d.%m.%Y %H:%M') if contact.contact_time else None
+            'conversation_time': contact.conversation_time.isoformat() if contact.conversation_time else None,
+            'conversation_time_formatted': contact.conversation_time.strftime('%d.%m.%Y %H:%M') if contact.conversation_time else None
         })
     
-    return render_template('contacts.html', 
+    return render_template('conversations.html', 
                          contacts=contacts_list, 
                          customers=customers_list,
-                         contacts_json=json.dumps(contacts_json))
+                         contacts_json=json.dumps(contacts_json),
+                         channels=channels_list,
+                         selected_channel=selected_channel,
+                         current_order=order,
+                         search_q=search_q)
 
-@app.route('/contacts/delete/<int:contact_id>')
+@app.route('/conversations/delete/<int:contact_id>')
 @login_required
 def delete_contact(contact_id):
     try:
-        contact = Contact.query.get_or_404(contact_id)
-        subject = contact.subject or 'Kontakt'
-        db.session.delete(contact)
+        conversation = Conversation.query.get_or_404(contact_id)
+        subject = conversation.subject or 'Konversation'
+        db.session.delete(conversation)
         db.session.commit()
-        flash(f'Kontakt "{subject}" wurde erfolgreich gelöscht')
+        flash(f'Konversation "{subject}" wurde erfolgreich gelöscht')
     except Exception as e:
         db.session.rollback()
         flash(f'Fehler beim Löschen: {str(e)}')
     
-    return redirect(url_for('contacts'))
+    return redirect(url_for('conversations'))
+
+
+@app.route('/orders/create', methods=['POST'])
+@login_required
+def create_order():
+    """Minimal endpoint to create a placeholder order for a customer.
+    This lets the customer-detail page create a lightweight order and return to the detail view.
+    """
+    try:
+        customer_id = request.form.get('customer_id')
+        if not customer_id:
+            flash('Kunde ist erforderlich')
+            return redirect(request.referrer or url_for('customers'))
+
+        # create a minimal order record
+        order = Order(
+            customer_id=int(customer_id),
+            order_date=datetime.now(),
+            status='Offen',
+            total_amount=0.0
+        )
+        db.session.add(order)
+        db.session.commit()
+        flash('Neue Bestellung (Platzhalter) wurde erstellt')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Fehler beim Erstellen der Bestellung: {e}')
+
+    # redirect back to customer detail
+    return redirect(request.referrer or url_for('customers'))
 
 # Entfernte Routen: orders, order_items, products, users
-# Die App fokussiert sich jetzt nur auf Kontakte und Kundenkontakte
+# Die App fokussiert sich jetzt nur auf Kontakte und Kundenkonversationen
 
 app.register_blueprint(customers_bp)
 

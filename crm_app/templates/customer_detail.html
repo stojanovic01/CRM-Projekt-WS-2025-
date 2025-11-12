@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="detail-card">
+    <h2>Kunde: {{ customer.first_name }} {{ customer.last_name }} (Kund# {{ customer.id }})</h2>
+    <div class="detail-row">
+        <div class="contact-inline">
+            Kontakt: {{ customer.email or '—' }}, {{ customer.phone or '—' }}
+        </div>
+        <div class="last-contact-inline">
+            {% if last_conversation %}
+                • Letzte Konversation: {{ last_conversation.conversation_time.strftime('%Y-%m-%d') }} ({{ last_conversation.channel }})
+            {% else %}
+                • Keine Konversation vorhanden
+            {% endif %}
+        </div>
+    </div>
+
+    <hr>
+
+    <div class="kpis">
+        <div><strong>KPIs:</strong></div>
+        <div>Umsatz gesamt: {{ "{:.2f}".format(total_revenue) }} €</div>
+        <div>Umsatz letztes Jahr</div>
+        <div>Umsatz letztes Jahr (berechnet): {{ "{:.2f}".format(revenue_last_year) }} €</div>
+    </div>
+
+    <form method="GET" action="{{ url_for('customer_detail', customer_id=customer.id) }}" class="date-range-form">
+        <label>Datumsbereich:</label>
+        <input type="date" name="start" value="{{ start or '' }}">
+        <input type="date" name="end" value="{{ end or '' }}">
+        <button type="submit" class="btn btn-primary">Anwenden</button>
+        <a class="btn btn-secondary" href="{{ url_for('customer_detail', customer_id=customer.id) }}">Zurücksetzen</a>
+    </form>
+
+    <div class="tabs">
+        <a href="#orders" class="tab">Letzte Bestellungen</a>
+        <a href="#contacts" class="tab">Letzte Konversationen</a>
+        <a href="#master" class="tab">Stammdaten</a>
+    </div>
+
+    <section id="orders">
+        <h3>Letzte Bestellungen</h3>
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Bestell#</th>
+                        <th>Datum</th>
+                        <th>Positionen</th>
+                        <th>Status</th>
+                        <th>Summe</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in recent_orders %}
+                    <tr>
+                        <td>{{ 'A-' ~ (10000 + order.id) }}</td>
+                        <td>{{ order.order_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ order.items|length }}</td>
+                        <td>{{ order.status }}</td>
+                        <td>{{ "{:.2f}".format(order.total_amount) }} €</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="empty-state">Keine Bestellungen gefunden.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="contacts" style="margin-top:2rem;">
+        <h3>Letzte Konversationen (Timeline, neueste zuerst)</h3>
+        <ul class="timeline">
+            {% for c in conversations_list %}
+            <li>
+                {{ c.conversation_time.strftime('%Y-%m-%d') }} &nbsp; {{ c.channel }}: {{ c.subject or c.notes[:60] }} {% if c.user %} - (Mitarbeiter: {{ c.user.name }}){% endif %}
+            </li>
+            {% else %}
+            <li>Keine Konversationen gefunden.</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section id="master" style="margin-top:2rem;">
+        <h3>Stammdaten</h3>
+        <div><strong>Name:</strong> {{ customer.first_name }} {{ customer.last_name }}</div>
+        <div><strong>E-Mail:</strong> {{ customer.email or '-' }}</div>
+        <div><strong>Telefon:</strong> {{ customer.phone or '-' }}</div>
+        <div><strong>Erstellt am:</strong> {{ customer.created_at.strftime('%Y-%m-%d') if customer.created_at else 'N/A' }}</div>
+    </section>
+
+    <div class="actions" style="margin-top:1.5rem; display:flex; gap:0.75rem;">
+        <form method="POST" action="{{ url_for('create_order') }}" style="display:inline-block; margin:0;">
+            <input type="hidden" name="customer_id" value="{{ customer.id }}">
+            <button type="submit" class="btn btn-primary">Neue Bestellung</button>
+        </form>
+
+        <button type="button" class="btn btn-primary" onclick="showAddConversationForm()">Neue Konversation</button>
+
+        <button type="button" class="btn btn-secondary" onclick="showEditCustomerForm()">Bearbeiten</button>
+    </div>
+
+    <!-- Edit Customer Modal -->
+    <div id="editCustomerModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Kunde bearbeiten</h3>
+                <button class="close-btn" onclick="hideEditCustomerForm()">×</button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('customers') }}">
+                    <input type="hidden" name="customer_id" value="{{ customer.id }}">
+                    <div class="form-group">
+                        <label>Vorname</label>
+                        <input type="text" name="first_name" value="{{ customer.first_name }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Nachname</label>
+                        <input type="text" name="last_name" value="{{ customer.last_name }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>E-Mail</label>
+                        <input type="email" name="email" value="{{ customer.email or '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Telefon</label>
+                        <input type="text" name="phone" value="{{ customer.phone or '' }}">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                        <button type="button" class="btn btn-secondary" onclick="hideEditCustomerForm()">Abbrechen</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Conversation Modal (creates via existing /conversations POST) -->
+    <div id="addConversationModal" class="modal" style="display:none;">
+        <div class="modal-content view-modal">
+            <div class="modal-header">
+                <h3>Neue Konversation</h3>
+                <button class="close-btn" onclick="hideAddConversationForm()">×</button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('conversations') }}">
+                    <input type="hidden" name="contact_id" value="">
+                    <input type="hidden" name="customer_id" id="convCustomerId" value="{{ customer.id }}">
+                    <div class="form-group">
+                        <label>Kanal</label>
+                        <select name="channel" required>
+                            <option value="Telefon">Telefon</option>
+                            <option value="E-Mail">E-Mail</option>
+                            <option value="Meeting">Meeting</option>
+                            <option value="Chat">Chat</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Betreff</label>
+                        <input type="text" name="subject">
+                    </div>
+                    <div class="form-group">
+                        <label>Notizen</label>
+                        <textarea name="notes" rows="4" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Konversationszeit</label>
+                        <input type="datetime-local" name="contact_time" id="convTime" required>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                        <button type="button" class="btn btn-secondary" onclick="hideAddConversationForm()">Abbrechen</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+.detail-card {
+    background: var(--bg-secondary);
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(0,0,0,0.08);
+}
+.detail-row { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+.kpis { display:flex; gap:2rem; align-items:center; margin:1rem 0; flex-wrap:wrap; }
+.date-range-form { display:flex; gap:0.5rem; align-items:center; margin-bottom:1rem; background:transparent; padding:0; box-shadow:none; border:none; flex-wrap:wrap; }
+.date-range-form input[type=date] { padding:0.5rem; border-radius:6px; border:1px solid rgba(0,0,0,0.08); background:var(--bg-primary); min-width:160px; }
+.date-range-form label { font-weight:700; margin-right:0.5rem; }
+.date-range-form .btn { margin-top:0.35rem; }
+.tabs { display:flex; gap:1rem; margin:1rem 0; }
+.tab { padding:0.4rem 0.6rem; background:var(--bg-tertiary); border-radius:4px; text-decoration:none; color:var(--text-primary); }
+.timeline { list-style: none; padding-left:0; }
+.timeline li { padding:0.4rem 0; border-bottom:1px dashed rgba(0,0,0,0.06); }
+/* Modal tweaks to avoid huge full-screen cards */
+.modal .modal-content { max-width:700px; width:95%; padding:1rem; }
+.modal { align-items:flex-start; padding-top:4rem; }
+</style>
+
+<script>
+function showEditCustomerForm(){ document.getElementById('editCustomerModal').style.display='flex'; }
+function hideEditCustomerForm(){ document.getElementById('editCustomerModal').style.display='none'; }
+
+function showAddConversationForm(){
+    // set current datetime in input
+    const now = new Date();
+    const tzOffset = now.getTimezoneOffset()*60000;
+    const localISOTime = new Date(now - tzOffset).toISOString().slice(0,16);
+    const el = document.getElementById('convTime'); if(el) el.value = localISOTime;
+    document.getElementById('addConversationModal').style.display='flex';
+}
+function hideAddConversationForm(){ document.getElementById('addConversationModal').style.display='none'; }
+</script>
+
+{% endblock %}

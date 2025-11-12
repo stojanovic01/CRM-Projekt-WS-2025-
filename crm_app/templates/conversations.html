@@ -4,7 +4,7 @@
 <div class="page-header">
     <h1><span class="page-icon">📞</span>Kundenkonversationen dokumentieren</h1>
     <button class="btn btn-primary" onclick="showAddForm()">
-        <span class="btn-icon">➕</span>Neuen Kontakt dokumentieren
+        <span class="btn-icon">➕</span>Neue Konversation dokumentieren
     </button>
 </div>
 
@@ -19,11 +19,11 @@
   {% endif %}
 {% endwith %}
 
-<!-- Add/Edit Contact Form -->
+<!-- Add/Edit Conversation Form -->
 <div id="contactForm" class="form-container" style="display: none;">
     <div class="form-card">
-        <h3 id="formTitle">Neuen Kontakt dokumentieren</h3>
-    <form method="POST" action="{{ url_for('conversations') }}">
+        <h3 id="formTitle">Neue Konversation dokumentieren</h3>
+        <form method="POST" action="{{ url_for('conversations') }}">
             <input type="hidden" id="contactId" name="contact_id" value="">
             
             <div class="form-row">
@@ -50,16 +50,16 @@
             
             <div class="form-group">
                 <label for="subject">Betreff</label>
-                <input type="text" id="subject" name="subject" placeholder="Kurze Beschreibung des Kontakts">
+                <input type="text" id="subject" name="subject" placeholder="Kurze Beschreibung der Konversation">
             </div>
             
             <div class="form-group">
                 <label for="notes">Notizen *</label>
-                <textarea id="notes" name="notes" rows="4" required placeholder="Detaillierte Notizen zu diesem Kontakt..."></textarea>
+                <textarea id="notes" name="notes" rows="4" required placeholder="Detaillierte Notizen zur Konversation..."></textarea>
             </div>
             
             <div class="form-group">
-                <label for="contactTime">Kontaktzeit *</label>
+                <label for="contactTime">Konversationszeit *</label>
                 <input type="datetime-local" id="contactTime" name="contact_time" required>
             </div>
             
@@ -100,7 +100,7 @@
     </form>
 </div>
 
-<!-- Contacts Table -->
+<!-- Conversations Table -->
 <div class="table-container">
     <table class="data-table">
         <thead>
@@ -108,7 +108,7 @@
                 <th>Kunde</th>
                 <th>Kanal</th>
                 <th>Betreff</th>
-                <th>Kontaktzeit</th>
+                <th>Konversationszeit</th>
                 <th>Notizen</th>
                 <th>Aktionen</th>
             </tr>
@@ -129,36 +129,36 @@
                     </span>
                 </td>
                 <td class="subject">{{ contact.subject or '-' }}</td>
-                <td class="contact-time">{{ contact.contact_time.strftime('%d.%m.%Y %H:%M') if contact.contact_time else 'N/A' }}</td>
+                <td class="contact-time">{{ contact.conversation_time.strftime('%d.%m.%Y %H:%M') if contact.conversation_time else 'N/A' }}</td>
                 <td class="notes-preview">
                     <div class="notes-text">{{ contact.notes[:100] }}{% if contact.notes and contact.notes|length > 100 %}...{% endif %}</div>
                 </td>
                 <td class="actions">
-                    <button class="btn btn-small btn-info" onclick="viewContact({{ contact.id }})">
+                    <button class="btn btn-small btn-info" onclick="viewConversation({{ contact.id }})">
                         <span class="btn-icon">👁️</span>Anzeigen
                     </button>
-                    <button class="btn btn-small btn-edit" onclick="editContact({{ contact.id }})">
+                    <button class="btn btn-small btn-edit" onclick="editConversation({{ contact.id }})">
                         <span class="btn-icon">✏️</span>Bearbeiten
                     </button>
-                    <button class="btn btn-small btn-danger" onclick="deleteContact({{ contact.id }}, '{{ contact.subject or 'Kontakt' }}')">
+                    <button class="btn btn-small btn-danger" onclick="deleteConversation({{ contact.id }}, '{{ contact.subject or 'Konversation' }}')">
                         <span class="btn-icon">🗑️</span>Löschen
                     </button>
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="6" class="empty-state">Keine Kontakte gefunden. Dokumentieren Sie den ersten Kundenkontakt!</td>
+                <td colspan="6" class="empty-state">Keine Konversationen gefunden. Dokumentieren Sie die erste Kundenkonversation!</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
 
-<!-- View Contact Modal -->
+<!-- View Conversation Modal -->
 <div id="viewModal" class="modal" style="display: none;">
     <div class="modal-content view-modal">
         <div class="modal-header">
-            <h3 id="viewTitle">Kontakt Details</h3>
+            <h3 id="viewTitle">Konversation Details</h3>
             <button class="close-btn" onclick="hideViewModal()">×</button>
         </div>
         <div class="modal-body">
@@ -172,7 +172,7 @@
                 <strong>Betreff:</strong> <span id="viewSubject"></span>
             </div>
             <div class="contact-detail">
-                <strong>Kontaktzeit:</strong> <span id="viewTime"></span>
+                <strong>Konversationszeit:</strong> <span id="viewTime"></span>
             </div>
             <div class="contact-detail">
                 <strong>Notizen:</strong>
@@ -188,8 +188,8 @@
 <!-- Delete Confirmation Modal -->
 <div id="deleteModal" class="modal" style="display: none;">
     <div class="modal-content">
-        <h3>Kontakt löschen</h3>
-        <p id="deleteMessage">Möchten Sie diesen Kontakt wirklich löschen?</p>
+        <h3>Konversation löschen</h3>
+        <p id="deleteMessage">Möchten Sie diese Konversation wirklich löschen?</p>
         <div class="modal-actions">
             <button id="confirmDelete" class="btn btn-danger">Löschen</button>
             <button onclick="hideDeleteModal()" class="btn btn-secondary">Abbrechen</button>
@@ -447,6 +447,13 @@
     display: flex;
     gap: var(--space-xs);
     flex-wrap: wrap;
+    align-items: center;
+}
+
+.actions .btn {
+    /* make action buttons more compact and inline */
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
 }
 
 .empty-state {
@@ -642,7 +649,7 @@ let editingContactId = null;
 let contactsData = {{ contacts_json|safe }};
 
 function showAddForm() {
-    document.getElementById('formTitle').textContent = 'Neuen Kontakt dokumentieren';
+    document.getElementById('formTitle').textContent = 'Neue Konversation dokumentieren';
     document.getElementById('contactId').value = '';
     document.getElementById('customerId').value = '';
     document.getElementById('channel').value = '';
@@ -656,22 +663,22 @@ function showAddForm() {
     editingContactId = null;
 }
 
-function editContact(id) {
+function editConversation(id) {
     const contact = contactsData.find(c => c.id == id);
     if (!contact) return;
     
-    document.getElementById('formTitle').textContent = 'Kontakt bearbeiten';
+    document.getElementById('formTitle').textContent = 'Konversation bearbeiten';
     document.getElementById('contactId').value = id;
     document.getElementById('customerId').value = contact.customer_id;
     document.getElementById('channel').value = contact.channel;
     document.getElementById('subject').value = contact.subject || '';
     document.getElementById('notes').value = contact.notes || '';
-    document.getElementById('contactTime').value = contact.contact_time;
+    document.getElementById('contactTime').value = contact.conversation_time;
     document.getElementById('contactForm').style.display = 'block';
     editingContactId = id;
 }
 
-function viewContact(id) {
+function viewConversation(id) {
     const contact = contactsData.find(c => c.id == id);
     if (!contact) return;
     
@@ -680,7 +687,7 @@ function viewContact(id) {
         return {'ä':'ae','ö':'oe','ü':'ue'}[match] || match; 
     })}">${contact.channel || 'Unbekannt'}</span>`;
     document.getElementById('viewSubject').textContent = contact.subject || '-';
-    document.getElementById('viewTime').textContent = contact.contact_time_formatted || 'N/A';
+    document.getElementById('viewTime').textContent = contact.conversation_time_formatted || 'N/A';
     document.getElementById('viewNotes').textContent = contact.notes || 'Keine Notizen';
     document.getElementById('viewModal').style.display = 'flex';
 }
@@ -694,8 +701,8 @@ function hideViewModal() {
     document.getElementById('viewModal').style.display = 'none';
 }
 
-function deleteContact(id, subject) {
-    document.getElementById('deleteMessage').textContent = `Möchten Sie den Kontakt "${subject}" wirklich löschen?`;
+function deleteConversation(id, subject) {
+    document.getElementById('deleteMessage').textContent = `Möchten Sie die Konversation "${subject}" wirklich löschen?`;
     document.getElementById('confirmDelete').onclick = function() {
         window.location.href = `/conversations/delete/${id}`;
     };
