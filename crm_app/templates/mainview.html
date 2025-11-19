@@ -33,12 +33,12 @@
           </tr>
         </thead>
         <tbody>
-          {% for customer in recent_customers %}
+          {% for customer in customers_pagination.items %}
           <tr>
             <td class="company-name">{{ customer.first_name }} {{ customer.last_name }}</td>
             <td class="email">{{ customer.email }}</td>
             <td class="phone">{{ customer.phone }}</td>
-            <td class="date">{{ customer.created_at.strftime('%d.%m.%Y') if customer.created_at else 'N/A' }}</td>
+            <td class="date">{{ customer.created_at|date }}</td>
           </tr>
           {% else %}
           <tr>
@@ -48,6 +48,31 @@
         </tbody>
       </table>
     </div>
+    
+    <!-- Paginierung für Kunden -->
+    {% if customers_pagination.pages > 1 %}
+    <div class="pagination">
+      {% if customers_pagination.has_prev %}
+        <a href="{{ url_for('mainview', customer_page=customers_pagination.prev_num, order_page=request.args.get('order_page', 1), customer_search=customer_search, order_search=order_search) }}" class="page-link">« Zurück</a>
+      {% endif %}
+      
+      {% for page_num in customers_pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+        {% if page_num %}
+          {% if page_num == customers_pagination.page %}
+            <span class="page-link active">{{ page_num }}</span>
+          {% else %}
+            <a href="{{ url_for('mainview', customer_page=page_num, order_page=request.args.get('order_page', 1), customer_search=customer_search, order_search=order_search) }}" class="page-link">{{ page_num }}</a>
+          {% endif %}
+        {% else %}
+          <span class="page-link">...</span>
+        {% endif %}
+      {% endfor %}
+      
+      {% if customers_pagination.has_next %}
+        <a href="{{ url_for('mainview', customer_page=customers_pagination.next_num, order_page=request.args.get('order_page', 1), customer_search=customer_search, order_search=order_search) }}" class="page-link">Weiter »</a>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
 
   <!-- Recent Orders Table -->
@@ -74,12 +99,12 @@
           </tr>
         </thead>
         <tbody>
-          {% for order in recent_orders %}
+          {% for order in orders_pagination.items %}
           <tr>
             <td class="company-name">{{ order.customer.first_name }} {{ order.customer.last_name if order.customer else 'Unbekannt' }}</td>
-            <td class="date">{{ order.order_date.strftime('%d.%m.%Y') if order.order_date else 'N/A' }}</td>
+            <td class="date">{{ order.order_date|date }}</td>
             <td><span class="status-badge status-{{ order.status.lower() if order.status else 'unknown' }}">{{ order.status or 'Unbekannt' }}</span></td>
-            <td class="amount">€{{ "{:,.2f}".format(order.total_amount) if order.total_amount else '0,00' }}</td>
+            <td class="amount">{{ order.total_amount|currency }}</td>
           </tr>
           {% else %}
           <tr>
@@ -89,6 +114,31 @@
         </tbody>
       </table>
     </div>
+    
+    <!-- Paginierung für Bestellungen -->
+    {% if orders_pagination.pages > 1 %}
+    <div class="pagination">
+      {% if orders_pagination.has_prev %}
+        <a href="{{ url_for('mainview', customer_page=request.args.get('customer_page', 1), order_page=orders_pagination.prev_num, customer_search=customer_search, order_search=order_search) }}" class="page-link">« Zurück</a>
+      {% endif %}
+      
+      {% for page_num in orders_pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+        {% if page_num %}
+          {% if page_num == orders_pagination.page %}
+            <span class="page-link active">{{ page_num }}</span>
+          {% else %}
+            <a href="{{ url_for('mainview', customer_page=request.args.get('customer_page', 1), order_page=page_num, customer_search=customer_search, order_search=order_search) }}" class="page-link">{{ page_num }}</a>
+          {% endif %}
+        {% else %}
+          <span class="page-link">...</span>
+        {% endif %}
+      {% endfor %}
+      
+      {% if orders_pagination.has_next %}
+        <a href="{{ url_for('mainview', customer_page=request.args.get('customer_page', 1), order_page=orders_pagination.next_num, customer_search=customer_search, order_search=order_search) }}" class="page-link">Weiter »</a>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
 </div>
 
@@ -270,6 +320,42 @@
   color: var(--text-muted) !important;
   font-style: italic;
   padding: var(--space-xl) !important;
+}
+
+/* Paginierung */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+}
+
+.page-link {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  min-width: 35px;
+  text-align: center;
+}
+
+.page-link:hover {
+  background: var(--primary-solid);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.page-link.active {
+  background: var(--primary-solid);
+  color: white;
+  font-weight: 600;
+  cursor: default;
 }
 
 /* Quick Actions */

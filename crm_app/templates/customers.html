@@ -3,9 +3,18 @@
 
 <div class="page-header">
     <h1><span class="page-icon">👥</span>Kontakte verwalten</h1>
-    <button class="btn btn-primary" onclick="showAddForm()">
-        <span class="btn-icon">➕</span>Neuen Kontakt hinzufügen
-    </button>
+    <div style="display: flex; gap: var(--space-md); align-items: center;">
+        <form method="GET" action="{{ url_for('customers') }}" style="display: flex; gap: 0.5rem; margin: 0;">
+            <input type="search" name="search" placeholder="Suche Kontakte..." value="{{ search or '' }}" style="padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid rgba(0,0,0,0.1); background: var(--bg-primary); min-width: 250px;">
+            <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem; margin: 0;">Suchen</button>
+            {% if search %}
+            <a href="{{ url_for('customers') }}" class="btn btn-secondary" style="padding: 0.5rem 1rem;">✕</a>
+            {% endif %}
+        </form>
+        <button class="btn btn-primary" onclick="showAddForm()">
+            <span class="btn-icon">➕</span>Neuen Kontakt hinzufügen
+        </button>
+    </div>
 </div>
 
 <!-- Flash Messages -->
@@ -73,12 +82,12 @@
             </tr>
         </thead>
         <tbody>
-            {% for customer in customers %}
+            {% for customer in customers_pagination.items %}
             <tr>
                 <td class="customer-name">{{ customer.first_name }} {{ customer.last_name }}</td>
                 <td class="email">{{ customer.email or '-' }}</td>
                 <td class="phone">{{ customer.phone or '-' }}</td>
-                <td class="date">{{ customer.created_at.strftime('%d.%m.%Y') if customer.created_at else 'N/A' }}</td>
+                <td class="date">{{ customer.created_at|date }}</td>
                 <td class="actions">
                     <a class="btn btn-small btn-info" href="{{ url_for('customer_detail', customer_id=customer.id) }}">
                         <span class="btn-icon">👁️</span>Ansehen
@@ -99,6 +108,31 @@
         </tbody>
     </table>
 </div>
+
+<!-- Paginierung -->
+{% if customers_pagination.pages > 1 %}
+<div class="pagination">
+    {% if customers_pagination.has_prev %}
+        <a href="{{ url_for('customers', page=customers_pagination.prev_num, search=search) }}" class="page-link">« Zurück</a>
+    {% endif %}
+    
+    {% for page_num in customers_pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+        {% if page_num %}
+            {% if page_num == customers_pagination.page %}
+                <span class="page-link active">{{ page_num }}</span>
+            {% else %}
+                <a href="{{ url_for('customers', page=page_num, search=search) }}" class="page-link">{{ page_num }}</a>
+            {% endif %}
+        {% else %}
+            <span class="page-link">...</span>
+        {% endif %}
+    {% endfor %}
+    
+    {% if customers_pagination.has_next %}
+        <a href="{{ url_for('customers', page=customers_pagination.next_num, search=search) }}" class="page-link">Weiter »</a>
+    {% endif %}
+</div>
+{% endif %}
 
 <!-- Delete Confirmation Modal -->
 <div id="deleteModal" class="modal" style="display: none;">
@@ -386,6 +420,42 @@
     display: flex;
     gap: var(--space-md);
     justify-content: flex-end;
+}
+
+/* Paginierung */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--space-xs);
+    margin-top: var(--space-lg);
+    padding: var(--space-md);
+}
+
+.page-link {
+    padding: var(--space-xs) var(--space-sm);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    min-width: 35px;
+    text-align: center;
+}
+
+.page-link:hover {
+    background: var(--primary-solid);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.page-link.active {
+    background: var(--primary-solid);
+    color: white;
+    font-weight: 600;
+    cursor: default;
 }
 
 /* Mobile Responsive */

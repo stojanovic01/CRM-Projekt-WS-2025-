@@ -114,7 +114,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for contact in contacts %}
+            {% for contact in conversations_pagination.items %}
             <tr>
                 <td class="customer-name">
                     {% if contact.customer %}
@@ -129,7 +129,7 @@
                     </span>
                 </td>
                 <td class="subject">{{ contact.subject or '-' }}</td>
-                <td class="contact-time">{{ contact.conversation_time.strftime('%d.%m.%Y %H:%M') if contact.conversation_time else 'N/A' }}</td>
+                <td class="contact-time">{{ contact.conversation_time|datetime }}</td>
                 <td class="notes-preview">
                     <div class="notes-text">{{ contact.notes[:100] }}{% if contact.notes and contact.notes|length > 100 %}...{% endif %}</div>
                 </td>
@@ -153,6 +153,31 @@
         </tbody>
     </table>
 </div>
+
+<!-- Paginierung -->
+{% if conversations_pagination.pages > 1 %}
+<div class="pagination">
+    {% if conversations_pagination.has_prev %}
+        <a href="{{ url_for('conversations', page=conversations_pagination.prev_num, channel=selected_channel, q=search_q, order=current_order) }}" class="page-link">« Zurück</a>
+    {% endif %}
+    
+    {% for page_num in conversations_pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+        {% if page_num %}
+            {% if page_num == conversations_pagination.page %}
+                <span class="page-link active">{{ page_num }}</span>
+            {% else %}
+                <a href="{{ url_for('conversations', page=page_num, channel=selected_channel, q=search_q, order=current_order) }}" class="page-link">{{ page_num }}</a>
+            {% endif %}
+        {% else %}
+            <span class="page-link">...</span>
+        {% endif %}
+    {% endfor %}
+    
+    {% if conversations_pagination.has_next %}
+        <a href="{{ url_for('conversations', page=conversations_pagination.next_num, channel=selected_channel, q=search_q, order=current_order) }}" class="page-link">Weiter »</a>
+    {% endif %}
+</div>
+{% endif %}
 
 <!-- View Conversation Modal -->
 <div id="viewModal" class="modal" style="display: none;">
@@ -594,6 +619,42 @@
     display: flex;
     gap: var(--space-md);
     justify-content: flex-end;
+}
+
+/* Paginierung */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--space-xs);
+    margin-top: var(--space-lg);
+    padding: var(--space-md);
+}
+
+.page-link {
+    padding: var(--space-xs) var(--space-sm);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    min-width: 35px;
+    text-align: center;
+}
+
+.page-link:hover {
+    background: var(--primary-solid);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.page-link.active {
+    background: var(--primary-solid);
+    color: white;
+    font-weight: 600;
+    cursor: default;
 }
 
 /* Filter bar specific improvements: prevent overlap and wrap nicely */

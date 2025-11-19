@@ -2,6 +2,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 import os
 import hashlib
+import re
 from functools import wraps
 from datetime import datetime, timedelta
 from models import db, User, Customer, Order, Product, Conversation
@@ -9,14 +10,78 @@ from views.customers import customers_bp
 from flask_migrate import Migrate
 
 app = Flask(__name__)
-# Use a deterministic DB path inside the app instance folder so the app and
-# seed scripts always talk to the same sqlite file regardless of current cwd.
-instance_dir = os.path.join(app.root_path, 'instance')
-os.makedirs(instance_dir, exist_ok=True)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(instance_dir, 'crm.db')
+
+# MySQL Datenbankverbindung
+# Importiere Konfiguration aus db_config.py
+try:
+    from db_config import MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD
+    has_port = True
+except ImportError:
+    # Fallback falls db_config.py nicht existiert
+    MYSQL_HOST = 'localhost'
+    MYSQL_PORT = 3306
+    MYSQL_DATABASE = 'u243204db2'
+    MYSQL_USER = 'u243204db2'
+    MYSQL_PASSWORD = '01122024spSP.'
+    has_port = False
+
+# SQLAlchemy Connection String für MySQL mit pymysql
+if has_port and MYSQL_PORT != 3306:
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}?charset=utf8mb4'
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8mb4'
+
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'dev-secret-change-in-production'  # für flash messages
+
+print(f"📊 Verbinde mit MySQL-Datenbank: {MYSQL_DATABASE} @ {MYSQL_HOST}")
+
 db.init_app(app)
 migrate = Migrate(app, db)
+
+# Hilfsfunktionen für Formatierung
+def format_currency(amount):
+    """Formatiere Betrag im deutschen Format: 1.234,56 €"""
+    if amount is None:
+        return '0,00 €'
+    return f"{amount:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.')
+
+def format_date(date_obj, with_time=False):
+    """Formatiere Datum im deutschen Format: dd.mm.YYYY (HH:MM)"""
+    if not date_obj:
+        return 'N/A'
+    if with_time:
+        return date_obj.strftime('%d.%m.%Y %H:%M')
+    return date_obj.strftime('%d.%m.%Y')
+
+# Validierungsfunktionen
+def validate_email(email):
+    """Validiere E-Mail-Format"""
+    if not email:
+        return True  # E-Mail ist optional
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+def validate_phone(phone):
+    """Validiere Telefonnummer (einfache Prüfung)"""
+    if not phone:
+        return True  # Telefon ist optional
+    # Erlaubt: +, -, Leerzeichen, Zahlen, Klammern
+    pattern = r'^[\d\s\+\-\(\)]+$'
+    return re.match(pattern, phone) is not None and len(phone.replace(' ', '').replace('-', '').replace('+', '').replace('(', '').replace(')', '')) >= 6
+
+# Template-Filter registrieren
+@app.template_filter('currency')
+def currency_filter(amount):
+    return format_currency(amount)
+
+@app.template_filter('date')
+def date_filter(date_obj):
+    return format_date(date_obj)
+
+@app.template_filter('datetime')
+def datetime_filter(date_obj):
+    return format_date(date_obj, with_time=True)
 
 def create_admin_user():
     """Erstelle Admin-User falls noch nicht vorhanden"""
@@ -213,11 +278,14 @@ def mainview():
     from datetime import datetime
     from sqlalchemy import or_
     
-    # Suchparameter aus Query-String
+    # Suchparameter und Paginierung
     customer_search = request.args.get('customer_search', '').strip()
     order_search = request.args.get('order_search', '').strip()
+    customer_page = request.args.get('customer_page', 1, type=int)
+    order_page = request.args.get('order_page', 1, type=int)
+    per_page = 10
     
-    # Kunden-Query mit Suche
+    # Kunden-Query mit Suche und Paginierung
     customers_query = Customer.query
     if customer_search:
         search_pattern = f"%{customer_search}%"
@@ -229,9 +297,11 @@ def mainview():
                 Customer.phone.ilike(search_pattern)
             )
         )
-    recent_customers = customers_query.order_by(Customer.created_at.desc()).limit(10).all()
+    customers_pagination = customers_query.order_by(Customer.created_at.desc()).paginate(
+        page=customer_page, per_page=per_page, error_out=False
+    )
     
-    # Bestellungen-Query mit Suche
+    # Bestellungen-Query mit Suche und Paginierung
     orders_query = Order.query.join(Customer)
     if order_search:
         search_pattern = f"%{order_search}%"
@@ -242,14 +312,16 @@ def mainview():
                 Order.status.ilike(search_pattern)
             )
         )
-    recent_orders = orders_query.order_by(Order.order_date.desc()).limit(10).all()
+    orders_pagination = orders_query.order_by(Order.order_date.desc()).paginate(
+        page=order_page, per_page=per_page, error_out=False
+    )
     
     current_date = datetime.now().strftime("%d.%m.%Y")
     username = session.get('username', 'Unbekannt')
     
     return render_template('mainview.html',
-                         recent_customers=recent_customers,
-                         recent_orders=recent_orders,
+                         customers_pagination=customers_pagination,
+                         orders_pagination=orders_pagination,
                          current_date=current_date,
                          username=username,
                          customer_search=customer_search,
@@ -266,8 +338,21 @@ def customers():
         email = request.form.get('email', '').strip() or None
         phone = request.form.get('phone', '').strip() or None
         
+        # Validierung
         if not first_name or not last_name:
-            flash('Vorname und Nachname sind erforderlich')
+            flash('❌ Vorname und Nachname sind erforderlich')
+            return redirect(url_for('customers'))
+        
+        if len(first_name) > 100 or len(last_name) > 100:
+            flash('❌ Name darf maximal 100 Zeichen lang sein')
+            return redirect(url_for('customers'))
+        
+        if email and not validate_email(email):
+            flash('❌ Ungültige E-Mail-Adresse')
+            return redirect(url_for('customers'))
+        
+        if phone and not validate_phone(phone):
+            flash('❌ Ungültige Telefonnummer (mindestens 6 Ziffern)')
             return redirect(url_for('customers'))
         
         try:
@@ -277,7 +362,7 @@ def customers():
                 customer.last_name = last_name
                 customer.email = email
                 customer.phone = phone
-                flash(f'Kontakt "{first_name} {last_name}" wurde erfolgreich aktualisiert')
+                flash(f'✅ Kontakt "{first_name} {last_name}" wurde erfolgreich aktualisiert')
             else:  # Add new
                 customer = Customer(
                     first_name=first_name,
@@ -286,18 +371,40 @@ def customers():
                     phone=phone
                 )
                 db.session.add(customer)
-                flash(f'Neuer Kontakt "{first_name} {last_name}" wurde erfolgreich hinzugefügt')
+                flash(f'✅ Neuer Kontakt "{first_name} {last_name}" wurde erfolgreich hinzugefügt')
             
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-            flash(f'Fehler beim Speichern: {str(e)}')
+            flash(f'❌ Fehler beim Speichern: {str(e)}')
         
         return redirect(url_for('customers'))
     
-    # GET request - show all customers
-    customers_list = Customer.query.order_by(Customer.created_at.desc()).all()
-    return render_template('customers.html', customers=customers_list)
+    # GET request - show all customers with pagination
+    page = request.args.get('page', 1, type=int)
+    per_page = 15
+    search = request.args.get('search', '').strip()
+    
+    customers_query = Customer.query
+    if search:
+        from sqlalchemy import or_
+        search_pattern = f"%{search}%"
+        customers_query = customers_query.filter(
+            or_(
+                Customer.first_name.ilike(search_pattern),
+                Customer.last_name.ilike(search_pattern),
+                Customer.email.ilike(search_pattern),
+                Customer.phone.ilike(search_pattern)
+            )
+        )
+    
+    customers_pagination = customers_query.order_by(Customer.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    return render_template('customers.html', 
+                         customers_pagination=customers_pagination,
+                         search=search)
 
 
 @app.route('/customers/<int:customer_id>')
@@ -390,8 +497,17 @@ def conversations():
         notes = request.form.get('notes', '').strip()
         contact_time_str = request.form.get('contact_time')
         
+        # Validierung
         if not customer_id or not channel or not notes or not contact_time_str:
-            flash('Kunde, Kanal, Notizen und Konversationszeit sind erforderlich')
+            flash('❌ Kunde, Kanal, Notizen und Konversationszeit sind erforderlich')
+            return redirect(url_for('conversations'))
+        
+        if len(notes) < 10:
+            flash('❌ Notizen müssen mindestens 10 Zeichen lang sein')
+            return redirect(url_for('conversations'))
+        
+        if subject and len(subject) > 255:
+            flash('❌ Betreff darf maximal 255 Zeichen lang sein')
             return redirect(url_for('conversations'))
 
         try:
@@ -409,7 +525,7 @@ def conversations():
                 conversation.subject = subject
                 conversation.notes = notes
                 conversation.conversation_time = contact_time
-                flash('Konversation wurde erfolgreich aktualisiert')
+                flash('✅ Konversation wurde erfolgreich aktualisiert')
             else:  # Add new
                 conversation = Conversation(
                     customer_id=customer_id,
@@ -420,17 +536,19 @@ def conversations():
                     conversation_time=contact_time
                 )
                 db.session.add(conversation)
-                flash('Neue Konversation wurde erfolgreich dokumentiert')
+                flash('✅ Neue Konversation wurde erfolgreich dokumentiert')
 
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-            flash(f'Fehler beim Speichern: {str(e)}')
+            flash(f'❌ Fehler beim Speichern: {str(e)}')
 
         return redirect(url_for('conversations'))
     
-    # GET request - show all contacts
+    # GET request - show all contacts with pagination
     import json
+    page = request.args.get('page', 1, type=int)
+    per_page = 15
 
     # Optionaler Filter per Kanal (channel), Suche (q) und Sortierung (order)
     selected_channel = request.args.get('channel', None)
@@ -462,9 +580,12 @@ def conversations():
 
     # Sortierung nach Kontaktzeit (default: neueste zuerst)
     if order == 'asc':
-        contacts_list = query.order_by(Conversation.conversation_time.asc()).all()
+        query = query.order_by(Conversation.conversation_time.asc())
     else:
-        contacts_list = query.order_by(Conversation.conversation_time.desc()).all()
+        query = query.order_by(Conversation.conversation_time.desc())
+    
+    # Paginierung
+    conversations_pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
     customers_list = Customer.query.order_by(Customer.first_name, Customer.last_name).all()
 
@@ -474,7 +595,7 @@ def conversations():
 
     # Prepare JSON data for JavaScript
     contacts_json = []
-    for contact in contacts_list:
+    for contact in conversations_pagination.items:
         contacts_json.append({
             'id': contact.id,
             'customer_id': contact.customer_id,
@@ -487,7 +608,7 @@ def conversations():
         })
     
     return render_template('conversations.html', 
-                         contacts=contacts_list, 
+                         conversations_pagination=conversations_pagination,
                          customers=customers_list,
                          contacts_json=json.dumps(contacts_json),
                          channels=channels_list,

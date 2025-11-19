@@ -9,7 +9,7 @@
         </div>
         <div class="last-contact-inline">
             {% if last_conversation %}
-                • Letzte Konversation: {{ last_conversation.conversation_time.strftime('%Y-%m-%d') }} ({{ last_conversation.channel }})
+                • Letzte Konversation: {{ last_conversation.conversation_time|date }} ({{ last_conversation.channel }})
             {% else %}
                 • Keine Konversation vorhanden
             {% endif %}
@@ -20,9 +20,9 @@
 
     <div class="kpis">
         <div><strong>KPIs:</strong></div>
-        <div>Umsatz gesamt: {{ "{:.2f}".format(total_revenue) }} €</div>
+        <div>Umsatz gesamt: {{ total_revenue|currency }}</div>
         <div>Umsatz letztes Jahr</div>
-        <div>Umsatz letztes Jahr (berechnet): {{ "{:.2f}".format(revenue_last_year) }} €</div>
+        <div>Umsatz letztes Jahr (berechnet): {{ revenue_last_year|currency }}</div>
     </div>
 
     <form method="GET" action="{{ url_for('customer_detail', customer_id=customer.id) }}" class="date-range-form">
@@ -56,10 +56,10 @@
                     {% for order in recent_orders %}
                     <tr>
                         <td>{{ 'A-' ~ (10000 + order.id) }}</td>
-                        <td>{{ order.order_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ order.order_date|date }}</td>
                         <td>{{ order.items|length }}</td>
                         <td>{{ order.status }}</td>
-                        <td>{{ "{:.2f}".format(order.total_amount) }} €</td>
+                        <td>{{ order.total_amount|currency }}</td>
                     </tr>
                     {% else %}
                     <tr>
@@ -76,7 +76,7 @@
         <ul class="timeline">
             {% for c in conversations_list %}
             <li>
-                {{ c.conversation_time.strftime('%Y-%m-%d') }} &nbsp; {{ c.channel }}: {{ c.subject or c.notes[:60] }} {% if c.user %} - (Mitarbeiter: {{ c.user.name }}){% endif %}
+                {{ c.conversation_time|date }} &nbsp; {{ c.channel }}: {{ c.subject or c.notes[:60] }} {% if c.user %} - (Mitarbeiter: {{ c.user.name }}){% endif %}
             </li>
             {% else %}
             <li>Keine Konversationen gefunden.</li>
@@ -89,7 +89,7 @@
         <div><strong>Name:</strong> {{ customer.first_name }} {{ customer.last_name }}</div>
         <div><strong>E-Mail:</strong> {{ customer.email or '-' }}</div>
         <div><strong>Telefon:</strong> {{ customer.phone or '-' }}</div>
-        <div><strong>Erstellt am:</strong> {{ customer.created_at.strftime('%Y-%m-%d') if customer.created_at else 'N/A' }}</div>
+        <div><strong>Erstellt am:</strong> {{ customer.created_at|date }}</div>
     </section>
 
     <div class="actions" style="margin-top:1.5rem; display:flex; gap:0.75rem;">
