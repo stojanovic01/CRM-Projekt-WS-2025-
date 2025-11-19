@@ -1,0 +1,31 @@
+# .htaccess für Flask-Anwendung auf Shared Hosting
+# Aktiviert CGI-Handler für Python
+
+# Falls der Server Passenger unterstützt (Phusion Passenger)
+PassengerEnabled On
+PassengerAppRoot /home/u243204db2/crm_app
+PassengerStartupFile passenger_wsgi.py
+PassengerPython /usr/bin/python3
+
+# Alternativ: CGI-Handler
+# AddHandler cgi-script .py
+# Options +ExecCGI
+
+# Weiterleitung aller Anfragen an die WSGI-Anwendung
+RewriteEngine On
+RewriteBase /crm_app/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ passenger_wsgi.py/$1 [QSA,L]
+
+# Verhindere direkten Zugriff auf Python-Dateien
+<FilesMatch "\.py$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Erlaube Zugriff auf passenger_wsgi.py
+<Files "passenger_wsgi.py">
+    Order allow,deny
+    Allow from all
+</Files>

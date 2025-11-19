@@ -1,0 +1,25 @@
+[Unit]
+Description=CRM Flask Application with Gunicorn
+After=network.target
+
+[Service]
+Type=notify
+# WICHTIG: Pfade anpassen für Ihren Server!
+# Beispiel: /home/u243204db2/domains/IHRE-DOMAIN.at/crm_app
+WorkingDirectory=/var/www/crm_app
+Environment="PATH=/var/www/crm_app/venv/bin"
+
+# Gunicorn starten
+ExecStart=/var/www/crm_app/venv/bin/gunicorn --config gunicorn_config.py wsgi:application
+
+# Automatischer Neustart bei Fehler
+Restart=on-failure
+RestartSec=10s
+
+# Security
+User=www-data
+Group=www-data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

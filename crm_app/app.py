@@ -666,9 +666,23 @@ def create_order():
 
 app.register_blueprint(customers_bp)
 
+# Initialisierung beim ersten Start (nur wenn direkt ausgeführt)
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()  # erstellt Tabellen automatisch
         create_admin_user()  # erstelle Admin-User
         create_sample_data()  # erstelle Testdaten
-    app.run(debug=True)
+    
+    # Lokaler Entwicklungsserver
+    app.run(debug=True, host='127.0.0.1', port=5000)
+else:
+    # Produktion (wenn über WSGI/Passenger aufgerufen)
+    with app.app_context():
+        try:
+            db.create_all()
+            create_admin_user()
+            # Beispieldaten nur beim ersten Mal erstellen
+            if Customer.query.count() == 0:
+                create_sample_data()
+        except Exception as e:
+            print(f"Initialisierungsfehler: {e}")
