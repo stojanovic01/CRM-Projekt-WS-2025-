@@ -11,7 +11,17 @@
 <div class="dashboard-tables">
   <!-- Recent Customers Table -->
   <div class="table-section">
-    <h3><span class="table-icon">👥</span>Neueste Kunden</h3>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md);">
+      <h3 style="margin: 0;"><span class="table-icon">👥</span>Kunden</h3>
+      <form method="GET" action="{{ url_for('mainview') }}" style="display: flex; gap: 0.5rem; align-items: center; background: none; padding: 0; box-shadow: none; border: none;">
+        <input type="hidden" name="order_search" value="{{ order_search or '' }}">
+        <input type="search" name="customer_search" placeholder="Suche Kunden..." value="{{ customer_search or '' }}" style="padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(0,0,0,0.1); background: var(--bg-primary); min-width: 200px;">
+        <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem; margin: 0;">Suchen</button>
+        {% if customer_search %}
+        <a href="{{ url_for('mainview', order_search=order_search) }}" class="btn btn-secondary" style="padding: 0.5rem 1rem; text-decoration: none;">✕</a>
+        {% endif %}
+      </form>
+    </div>
     <div class="table-container">
       <table class="data-table">
         <thead>
@@ -42,7 +52,17 @@
 
   <!-- Recent Orders Table -->
   <div class="table-section">
-    <h3><span class="table-icon">📦</span>Letzte Bestellungen</h3>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md);">
+      <h3 style="margin: 0;"><span class="table-icon">📦</span>Bestellungen</h3>
+      <form method="GET" action="{{ url_for('mainview') }}" style="display: flex; gap: 0.5rem; align-items: center; background: none; padding: 0; box-shadow: none; border: none;">
+        <input type="hidden" name="customer_search" value="{{ customer_search or '' }}">
+        <input type="search" name="order_search" placeholder="Suche Bestellungen..." value="{{ order_search or '' }}" style="padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(0,0,0,0.1); background: var(--bg-primary); min-width: 200px;">
+        <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem; margin: 0;">Suchen</button>
+        {% if order_search %}
+        <a href="{{ url_for('mainview', customer_search=customer_search) }}" class="btn btn-secondary" style="padding: 0.5rem 1rem; text-decoration: none;">✕</a>
+        {% endif %}
+      </form>
+    </div>
     <div class="table-container">
       <table class="data-table">
         <thead>

@@ -6,6 +6,7 @@ from functools import wraps
 from datetime import datetime, timedelta
 from models import db, User, Customer, Order, Product, Conversation
 from views.customers import customers_bp
+from flask_migrate import Migrate
 
 app = Flask(__name__)
 # Use a deterministic DB path inside the app instance folder so the app and
@@ -15,6 +16,7 @@ os.makedirs(instance_dir, exist_ok=True)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(instance_dir, 'crm.db')
 app.config['SECRET_KEY'] = 'dev-secret-change-in-production'  # für flash messages
 db.init_app(app)
+migrate = Migrate(app, db)
 
 def create_admin_user():
     """Erstelle Admin-User falls noch nicht vorhanden"""
@@ -38,7 +40,7 @@ def create_sample_data():
     if Customer.query.count() > 0:
         return
     
-    # Österreichische/Deutsche Unternehmen mit Ansprechpartnern
+    # Österreichische/Deutsche Unternehmen mit Ansprechpartnern (erweitert auf 15 Kunden)
     contacts_data = [
         {"first_name": "Maria", "last_name": "Schmidt", "email": "m.schmidt@tgm.ac.at", "phone": "+43 1 33126-102"},
         {"first_name": "Thomas", "last_name": "Müller", "email": "t.mueller@siemens.com", "phone": "+43 1 71707-234"},
@@ -47,7 +49,14 @@ def create_sample_data():
         {"first_name": "Andrea", "last_name": "Wagner", "email": "a.wagner@basf.at", "phone": "+43 1 71175-123"},
         {"first_name": "Robert", "last_name": "Bauer", "email": "r.bauer@microsoft.at", "phone": "+43 1 61616-456"},
         {"first_name": "Julia", "last_name": "Hofmann", "email": "j.hofmann@sap.com", "phone": "+43 1 28818-789"},
-        {"first_name": "Christian", "last_name": "Steiner", "email": "c.steiner@redbull.com", "phone": "+43 662 6582-012"}
+        {"first_name": "Christian", "last_name": "Steiner", "email": "c.steiner@redbull.com", "phone": "+43 662 6582-012"},
+        {"first_name": "Lisa", "last_name": "Mayer", "email": "l.mayer@bosch.at", "phone": "+43 1 79730-345"},
+        {"first_name": "Klaus", "last_name": "Berger", "email": "k.berger@telekom.at", "phone": "+43 1 79585-678"},
+        {"first_name": "Anna", "last_name": "Huber", "email": "a.huber@porsche.at", "phone": "+43 1 91104-901"},
+        {"first_name": "Stefan", "last_name": "Gruber", "email": "s.gruber@voest.at", "phone": "+43 732 6585-234"},
+        {"first_name": "Petra", "last_name": "Pichler", "email": "p.pichler@ams.at", "phone": "+43 3842 200-567"},
+        {"first_name": "Markus", "last_name": "Eder", "email": "m.eder@andritz.com", "phone": "+43 316 6902-890"},
+        {"first_name": "Sophie", "last_name": "Lang", "email": "s.lang@frequentis.com", "phone": "+43 1 81150-123"}
     ]
     
     # Produkte erstellen (ohne description Feld)
@@ -85,15 +94,15 @@ def create_sample_data():
     
     db.session.commit()  # Erst committen damit IDs verfügbar sind
     
-    # Bestellungen erstellen (mit korrekten Status-Werten)
+    # Bestellungen erstellen (mit korrekten Status-Werten) - erhöht auf 60 Bestellungen
     import random
     order_statuses = ['Offen', 'Bezahlt', 'Storniert']  # Diese Werte sind im Model definiert
     
-    for i in range(12):  # 12 Bestellungen
+    for i in range(60):  # 60 Bestellungen (für ≥50 Kriterium)
         customer = random.choice(customers)
         
-        # Realistische Bestelldaten der letzten 60 Tage
-        order_date = datetime.now() - timedelta(days=random.randint(0, 60))
+        # Realistische Bestelldaten der letzten 120 Tage
+        order_date = datetime.now() - timedelta(days=random.randint(0, 120))
         
         order = Order(
             customer_id=customer.id,
@@ -132,9 +141,9 @@ def create_sample_data():
             'Kunde interessiert sich für Zusatzmodule. Cross-selling Potenzial vorhanden.'
         ]
         
-        for i in range(15):  # 15 Konversationen
+        for i in range(60):  # 60 Konversationen (für ≥50 Kriterium)
             customer = random.choice(customers)
-            contact_time = datetime.now() - timedelta(days=random.randint(0, 90), hours=random.randint(0, 23))
+            contact_time = datetime.now() - timedelta(days=random.randint(0, 120), hours=random.randint(0, 23))
 
             conversation = Conversation(
                 customer_id=customer.id,
@@ -147,7 +156,7 @@ def create_sample_data():
             db.session.add(conversation)
     
     db.session.commit()
-    print("Testdaten erfolgreich erstellt: 8 Kunden, 5 Produkte, 12 Bestellungen, 15 Kontakte")
+    print("Testdaten erfolgreich erstellt: 15 Kunden, 5 Produkte, 60 Bestellungen, 60 Kontakte")
 
 def login_required(f):
     """Decorator für geschützte Routen"""
@@ -202,12 +211,38 @@ def logout():
 def mainview():
     from models import Customer, Order, Conversation
     from datetime import datetime
+    from sqlalchemy import or_
     
-    # Neueste 5 Kunden (nach Erstellungsdatum)
-    recent_customers = Customer.query.order_by(Customer.created_at.desc()).limit(5).all()
+    # Suchparameter aus Query-String
+    customer_search = request.args.get('customer_search', '').strip()
+    order_search = request.args.get('order_search', '').strip()
     
-    # Neueste 5 Bestellungen (nach Bestelldatum)
-    recent_orders = Order.query.order_by(Order.order_date.desc()).limit(5).all()
+    # Kunden-Query mit Suche
+    customers_query = Customer.query
+    if customer_search:
+        search_pattern = f"%{customer_search}%"
+        customers_query = customers_query.filter(
+            or_(
+                Customer.first_name.ilike(search_pattern),
+                Customer.last_name.ilike(search_pattern),
+                Customer.email.ilike(search_pattern),
+                Customer.phone.ilike(search_pattern)
+            )
+        )
+    recent_customers = customers_query.order_by(Customer.created_at.desc()).limit(10).all()
+    
+    # Bestellungen-Query mit Suche
+    orders_query = Order.query.join(Customer)
+    if order_search:
+        search_pattern = f"%{order_search}%"
+        orders_query = orders_query.filter(
+            or_(
+                Customer.first_name.ilike(search_pattern),
+                Customer.last_name.ilike(search_pattern),
+                Order.status.ilike(search_pattern)
+            )
+        )
+    recent_orders = orders_query.order_by(Order.order_date.desc()).limit(10).all()
     
     current_date = datetime.now().strftime("%d.%m.%Y")
     username = session.get('username', 'Unbekannt')
@@ -216,7 +251,9 @@ def mainview():
                          recent_customers=recent_customers,
                          recent_orders=recent_orders,
                          current_date=current_date,
-                         username=username)
+                         username=username,
+                         customer_search=customer_search,
+                         order_search=order_search)
 
 @app.route('/customers', methods=['GET', 'POST'])
 @login_required
