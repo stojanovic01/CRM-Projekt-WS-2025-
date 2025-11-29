@@ -1,0 +1,72 @@
+# Umgebungs- und Konfigurationsdateien
+.env
+.env.local
+.env.production
+include.php
+config.php
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Datenbanken
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
+# Logs
+*.log
+logs/
+
+# Temporäre Dateien
+*.tmp
+.cache/
+.pytest_cache/
+
+# Sensible Daten
+credentials.json
+secrets.json
+private_key.pem
+
+# OS-spezifisch
+Thumbs.db
+.AppleDouble
+.LSOverride

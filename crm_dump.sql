@@ -1,151 +1,111 @@
--- CRM-Anwendung - Datenbank-Dump
--- Schema und Beispieldaten
--- Für Import auf PythonAnywhere MySQL
-
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-START TRANSACTION;
-SET time_zone = "+00:00";
-
--- ============================================================================
--- TABELLEN-STRUKTUR
--- ============================================================================
-
-DROP TABLE IF EXISTS `users`;
-CREATE TABLE `users` (
-  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `name` varchar(100) NOT NULL,
-  `email` varchar(255) UNIQUE,
-  `password_hash` varchar(255),
-  `role` enum('Schüler','Lehrer','Admin') DEFAULT 'Schüler',
-  UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `customers`;
-CREATE TABLE `customers` (
-  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `first_name` varchar(100) NOT NULL,
-  `last_name` varchar(100) NOT NULL,
-  `email` varchar(255) UNIQUE,
-  `phone` varchar(50),
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY `email` (`email`),
-  INDEX `idx_customers_name` (`first_name`, `last_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `products`;
-CREATE TABLE `products` (
-  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `sku` varchar(100) UNIQUE,
-  `name` varchar(255) NOT NULL,
-  `base_price` decimal(10, 2) NOT NULL,
-  INDEX `idx_products_name` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `orders`;
-CREATE TABLE `orders` (
-  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `customer_id` int NOT NULL,
-  `order_date` datetime NOT NULL,
-  `status` enum('Offen','Bezahlt','Storniert') NOT NULL DEFAULT 'Offen',
-  `total_amount` decimal(10, 2) NOT NULL,
-  KEY `fk_orders_customer` (`customer_id`),
-  CONSTRAINT `fk_orders_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE,
-  INDEX `idx_orders_date` (`order_date`),
-  INDEX `idx_orders_customer_date` (`customer_id`, `order_date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `order_items`;
-CREATE TABLE `order_items` (
-  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `order_id` int NOT NULL,
-  `product_id` int NOT NULL,
-  `quantity` int NOT NULL,
-  `unit_price` decimal(10, 2) NOT NULL,
-  KEY `fk_order_items_order` (`order_id`),
-  KEY `fk_order_items_product` (`product_id`),
-  CONSTRAINT `fk_order_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_order_items_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `conversations`;
-CREATE TABLE `conversations` (
-  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `customer_id` int NOT NULL,
-  `user_id` int,
-  `channel` enum('Telefon','E-Mail','Meeting','Chat') NOT NULL,
-  `subject` varchar(255),
-  `notes` text,
-  `conversation_time` datetime NOT NULL,
-  KEY `fk_conversations_customer` (`customer_id`),
-  KEY `fk_conversations_user` (`user_id`),
-  CONSTRAINT `fk_conversations_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_conversations_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
-  INDEX `idx_conversations_time` (`conversation_time`),
-  INDEX `idx_conversations_customer_time` (`customer_id`, `conversation_time`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- BEISPIELDATEN
--- ============================================================================
-
--- Admin-Benutzer (Passwort: administrator)
-INSERT INTO `users` (`name`, `email`, `password_hash`, `role`) VALUES
-('administrator', 'admin@crm.local', '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918', 'Admin');
-
--- Beispiel-Produkte
-INSERT INTO `products` (`sku`, `name`, `base_price`) VALUES
-('SKU001', 'Laptop Pro', 1299.99),
-('SKU002', 'USB-C Kabel', 29.99),
-('SKU003', 'Monitor 27"', 399.99),
-('SKU004', 'Wireless Mouse', 79.99),
-('SKU005', 'Tastatur Mechanisch', 149.99);
-
--- Beispiel-Kunden
-INSERT INTO `customers` (`first_name`, `last_name`, `email`, `phone`, `created_at`) VALUES
-('Max', 'Mustermann', 'max.mustermann@example.com', '+43 699 1234567', '2025-01-15 10:30:00'),
-('Anna', 'Beispiel', 'anna.beispiel@example.com', '+43 699 2345678', '2025-01-20 14:15:00'),
-('Peter', 'Schmidt', 'peter.schmidt@example.com', '+43 699 3456789', '2025-02-05 09:45:00'),
-('Sarah', 'Weber', 'sarah.weber@example.com', '+43 699 4567890', '2025-02-10 11:20:00'),
-('Thomas', 'Fischer', 'thomas.fischer@example.com', '+43 699 5678901', '2025-02-15 13:00:00');
-
--- Beispiel-Bestellungen
-INSERT INTO `orders` (`customer_id`, `order_date`, `status`, `total_amount`) VALUES
-(1, '2025-03-01 10:00:00', 'Bezahlt', 1329.98),
-(1, '2025-04-15 11:30:00', 'Offen', 449.98),
-(2, '2025-03-10 09:00:00', 'Bezahlt', 1479.97),
-(2, '2025-04-20 14:20:00', 'Bezahlt', 299.96),
-(3, '2025-03-20 13:45:00', 'Offen', 1399.98),
-(4, '2025-04-01 10:15:00', 'Bezahlt', 79.99),
-(5, '2025-04-10 15:30:00', 'Bezahlt', 1429.97);
-
--- Bestellpositionen
-INSERT INTO `order_items` (`order_id`, `product_id`, `quantity`, `unit_price`) VALUES
-(1, 1, 1, 1299.99),
-(1, 2, 1, 29.99),
-(2, 3, 1, 399.99),
-(2, 4, 1, 49.99),
-(3, 1, 1, 1299.99),
-(3, 2, 1, 29.99),
-(3, 5, 1, 149.99),
-(4, 4, 1, 79.99),
-(4, 2, 1, 29.99),
-(4, 2, 1, 29.99),
-(5, 1, 1, 1299.99),
-(5, 4, 1, 99.99),
-(6, 4, 1, 79.99),
-(7, 1, 1, 1299.99),
-(7, 2, 1, 29.99),
-(7, 5, 1, 99.99);
-
--- Beispiel-Gespräche
-INSERT INTO `conversations` (`customer_id`, `user_id`, `channel`, `subject`, `notes`, `conversation_time`) VALUES
-(1, 1, 'Telefon', 'Produkt-Anfrage', 'Kunde interessiert sich für Laptops und Zubehör', '2025-03-01 09:30:00'),
-(1, 1, 'E-Mail', 'Rechnung-Frage', 'Frage zur Rechnungsnummer', '2025-03-05 14:00:00'),
-(2, 1, 'Meeting', 'Großbestellung', 'Diskussion über Mengenrabatt', '2025-03-09 10:00:00'),
-(2, 1, 'Chat', 'Versand-Status', 'Kunde verfolgt Bestellstatus', '2025-03-11 16:45:00'),
-(3, 1, 'Telefon', 'Technischer Support', 'Hilfe bei der Konfiguration', '2025-03-19 11:00:00'),
-(3, 1, 'E-Mail', 'Follow-up', 'Bestätigung der Lösung', '2025-03-22 09:15:00'),
-(4, 1, 'Meeting', 'Jahresplanung', 'Planung für nächstes Geschäftsjahr', '2025-04-01 13:00:00'),
-(5, 1, 'Telefon', 'Neue Anfrage', 'Kunde möchte Angebot', '2025-04-09 10:30:00');
-
+BEGIN TRANSACTION;
+CREATE TABLE alembic_version (
+	version_num VARCHAR(32) NOT NULL, 
+	CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+);
+INSERT INTO "alembic_version" VALUES('2a9991bb71ef');
+CREATE TABLE conversations (
+	id INTEGER NOT NULL, 
+	customer_id INTEGER NOT NULL, 
+	user_id INTEGER, 
+	channel VARCHAR(7) NOT NULL, 
+	subject VARCHAR(255), 
+	notes TEXT, 
+	conversation_time DATETIME NOT NULL, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(customer_id) REFERENCES customers (id) ON DELETE CASCADE, 
+	FOREIGN KEY(user_id) REFERENCES users (id), 
+	CONSTRAINT conversation_channel CHECK (channel IN ('Telefon', 'E-Mail', 'Meeting', 'Chat'))
+);
+INSERT INTO "conversations" VALUES(1,1,2,'Telefon','Rechnungsanfrage','Kunde fragt nach Rechnung','2024-12-14 18:23:20.884682');
+INSERT INTO "conversations" VALUES(2,2,1,'E-Mail','Lieferverzögerung','Kundenbeschwerde','2025-06-07 18:23:20.884682');
+INSERT INTO "conversations" VALUES(3,3,2,'Meeting','Anforderungsanalyse','Besuch beim Kunden','2025-10-30 18:23:20.884682');
+INSERT INTO "conversations" VALUES(4,4,3,'Chat','Technischer Support','Fragen zum Produkt','2025-11-27 18:23:20.884682');
+INSERT INTO "conversations" VALUES(5,5,1,'E-Mail','Danksagung','Kunde bedankt sich','2025-11-29 18:23:20.884682');
+CREATE TABLE customers (
+	id INTEGER NOT NULL, 
+	first_name VARCHAR(100) NOT NULL, 
+	last_name VARCHAR(100) NOT NULL, 
+	email VARCHAR(255), 
+	phone VARCHAR(50), 
+	created_at DATETIME NOT NULL, 
+	PRIMARY KEY (id), 
+	UNIQUE (email)
+);
+INSERT INTO "customers" VALUES(1,'Max','Mustermann','max@example.com','+43 1 234 5678','2025-11-29 18:23:20.878923');
+INSERT INTO "customers" VALUES(2,'Anna','Schmidt','anna@example.com','+43 2 345 6789','2025-11-29 18:23:20.878923');
+INSERT INTO "customers" VALUES(3,'Peter','Wagner','peter@example.com','+43 3 456 7890','2025-11-29 18:23:20.878923');
+INSERT INTO "customers" VALUES(4,'Sandra','Hofmann','sandra@example.com','+43 4 567 8901','2025-11-29 18:23:20.878923');
+INSERT INTO "customers" VALUES(5,'Thomas','Brunner','thomas@example.com','+43 5 678 9012','2025-11-29 18:23:20.878923');
+CREATE TABLE order_items (
+	id INTEGER NOT NULL, 
+	order_id INTEGER NOT NULL, 
+	product_id INTEGER NOT NULL, 
+	quantity INTEGER NOT NULL, 
+	unit_price NUMERIC(10, 2) NOT NULL, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(order_id) REFERENCES orders (id) ON DELETE CASCADE, 
+	FOREIGN KEY(product_id) REFERENCES products (id)
+);
+INSERT INTO "order_items" VALUES(1,1,1,1,899.99);
+INSERT INTO "order_items" VALUES(2,1,2,1,349.99);
+INSERT INTO "order_items" VALUES(3,2,2,1,349.99);
+INSERT INTO "order_items" VALUES(4,2,5,1,19.99);
+INSERT INTO "order_items" VALUES(5,3,1,1,899.99);
+INSERT INTO "order_items" VALUES(6,3,4,1,49.99);
+INSERT INTO "order_items" VALUES(7,4,1,1,899.99);
+INSERT INTO "order_items" VALUES(8,4,2,1,349.99);
+INSERT INTO "order_items" VALUES(9,4,3,1,79.99);
+INSERT INTO "order_items" VALUES(10,5,3,2,79.99);
+INSERT INTO "order_items" VALUES(11,5,4,1,49.99);
+INSERT INTO "order_items" VALUES(12,6,1,2,899.99);
+INSERT INTO "order_items" VALUES(13,6,5,1,19.99);
+INSERT INTO "order_items" VALUES(14,7,5,5,19.99);
+CREATE TABLE orders (
+	id INTEGER NOT NULL, 
+	customer_id INTEGER NOT NULL, 
+	order_date DATETIME NOT NULL, 
+	status VARCHAR(9) NOT NULL, 
+	total_amount NUMERIC(10, 2) NOT NULL, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(customer_id) REFERENCES customers (id) ON DELETE CASCADE, 
+	CONSTRAINT order_status CHECK (status IN ('Offen', 'Bezahlt', 'Storniert'))
+);
+INSERT INTO "orders" VALUES(1,1,'2024-10-30 18:23:20.884682','Bezahlt',1249.98);
+INSERT INTO "orders" VALUES(2,2,'2024-12-09 18:23:20.884682','Bezahlt',429.98);
+INSERT INTO "orders" VALUES(3,1,'2025-01-28 18:23:20.884682','Bezahlt',949.98);
+INSERT INTO "orders" VALUES(4,3,'2025-06-02 18:23:20.884682','Bezahlt',1349.97);
+INSERT INTO "orders" VALUES(5,4,'2025-10-30 18:23:20.884682','Offen',499.98);
+INSERT INTO "orders" VALUES(6,5,'2025-11-24 18:23:20.884682','Bezahlt',2249.95);
+INSERT INTO "orders" VALUES(7,2,'2025-11-29 18:23:20.884682','Offen',129.98);
+CREATE TABLE products (
+	id INTEGER NOT NULL, 
+	sku VARCHAR(100), 
+	name VARCHAR(255) NOT NULL, 
+	base_price NUMERIC(10, 2) NOT NULL, 
+	PRIMARY KEY (id), 
+	UNIQUE (sku)
+);
+INSERT INTO "products" VALUES(1,'PROD-001','Laptop',899.99);
+INSERT INTO "products" VALUES(2,'PROD-002','Monitor 27"',349.99);
+INSERT INTO "products" VALUES(3,'PROD-003','Tastatur',79.99);
+INSERT INTO "products" VALUES(4,'PROD-004','Maus',49.99);
+INSERT INTO "products" VALUES(5,'PROD-005','USB-C Kabel',19.99);
+CREATE TABLE users (
+	id INTEGER NOT NULL, 
+	name VARCHAR(100) NOT NULL, 
+	email VARCHAR(255), 
+	password_hash VARCHAR(255), 
+	role VARCHAR(7), 
+	PRIMARY KEY (id), 
+	UNIQUE (email), 
+	CONSTRAINT user_role CHECK (role IN ('Schüler', 'Lehrer', 'Admin'))
+);
+INSERT INTO "users" VALUES(1,'Admin Benutzer','admin@crm.local','hashed','Admin');
+INSERT INTO "users" VALUES(2,'Lehrer Test','teacher@school.local','hashed','Lehrer');
+INSERT INTO "users" VALUES(3,'Schüler Test','student@school.local','hashed','Schüler');
+CREATE INDEX idx_conversations_customer_time ON conversations (customer_id, conversation_time);
+CREATE INDEX idx_conversations_time ON conversations (conversation_time);
+CREATE INDEX idx_orders_customer_date ON orders (customer_id, order_date);
+CREATE INDEX idx_orders_date ON orders (order_date);
 COMMIT;
