@@ -8,33 +8,36 @@ from datetime import datetime, timedelta
 from models import db, User, Customer, Order, Product, Conversation
 from views.customers import customers_bp
 from flask_migrate import Migrate
+from dotenv import load_dotenv
+
+# Lade .env Datei falls vorhanden
+load_dotenv()
 
 app = Flask(__name__)
 
-# MySQL Datenbankverbindung
-# Importiere Konfiguration aus db_config.py
-try:
-    from db_config import MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD
-    has_port = True
-except ImportError:
-    # Fallback falls db_config.py nicht existiert
-    MYSQL_HOST = 'localhost'
-    MYSQL_PORT = 3306
-    MYSQL_DATABASE = 'u243204db2'
-    MYSQL_USER = 'u243204db2'
-    MYSQL_PASSWORD = '01122024spSP.'
-    has_port = False
+# ============================================================================
+# DATENBANKVERBINDUNG - Aus .env oder Fallback
+# ============================================================================
 
-# SQLAlchemy Connection String für MySQL mit pymysql
-if has_port and MYSQL_PORT != 3306:
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}?charset=utf8mb4'
-else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8mb4'
+# Versuche Datenbank-URI aus .env zu laden
+database_uri = os.getenv('SQLALCHEMY_DATABASE_URI')
 
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = 'dev-secret-change-in-production'  # für flash messages
+if not database_uri:
+    # Fallback: Versuche MySQL-Konfiguration
+    try:
+        from db_config import MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD
+        database_uri = f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}?charset=utf8mb4'
+    except ImportError:
+        # Letzter Fallback: SQLite lokal
+        instance_dir = os.path.join(os.path.dirname(__file__), 'instance')
+        os.makedirs(instance_dir, exist_ok=True)
+        database_uri = f'sqlite:///{os.path.join(instance_dir, "crm_app.db")}'
 
-print(f"📊 Verbinde mit MySQL-Datenbank: {MYSQL_DATABASE} @ {MYSQL_HOST}")
+app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = os.getenv('SQLALCHEMY_TRACK_MODIFICATIONS', 'False') == 'True'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-change-in-production')
+
+print(f"📊 Datenbankverbindung: {database_uri[:50]}...")
 
 db.init_app(app)
 migrate = Migrate(app, db)

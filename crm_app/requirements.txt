@@ -1,5 +1,5 @@
 # Python-Abhängigkeiten für CRM-Anwendung
-# Installieren mit: pip3 install -r requirements.txt
+# Installieren mit: pip install -r requirements.txt
 
 # Flask Framework
 Flask==3.0.0
@@ -13,8 +13,9 @@ SQLAlchemy==2.0.23
 PyMySQL==1.1.2
 cryptography==41.0.7
 
+# Configuration
+python-dotenv==1.0.0
+
 # Production Server
 gunicorn==21.2.0
 
-# Environment Variables (optional)
-python-dotenv==1.0.0
