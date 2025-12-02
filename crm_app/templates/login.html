@@ -13,7 +13,6 @@
             margin: 0;
             font-family: 'Space Grotesk', sans-serif;
         }
-        
         .login-container {
             background: white;
             padding: 3rem;
@@ -23,7 +22,6 @@
             width: 90%;
             text-align: center;
         }
-        
         .login-title {
             font-family: 'Orbitron', sans-serif;
             font-size: 2.5rem;
@@ -36,18 +34,15 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
-        
         .login-subtitle {
             color: #6b7280;
             margin-bottom: 2rem;
             font-size: 1.1rem;
         }
-        
         .form-group {
             margin-bottom: 1.5rem;
             text-align: left;
         }
-        
         .form-group label {
             display: block;
             margin-bottom: 0.5rem;
@@ -57,7 +52,6 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
-        
         .form-group input {
             width: 100%;
             padding: 1rem;
@@ -68,13 +62,11 @@
             transition: all 0.3s ease;
             box-sizing: border-box;
         }
-        
         .form-group input:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
-        
         .login-button {
             width: 100%;
             padding: 1rem;
@@ -90,16 +82,13 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
-        
         .login-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
         }
-        
         .flash-messages {
             margin-bottom: 1.5rem;
         }
-        
         .flash-error {
             background: #fee2e2;
             border: 1px solid #fecaca;
@@ -115,31 +104,26 @@
     <div class="login-container">
         <h1 class="login-title">CRM System</h1>
         <p class="login-subtitle">Bitte loggen Sie sich ein</p>
-        
-        {% with messages = get_flashed_messages() %}
-          {% if messages %}
-            <div class="flash-messages">
-              {% for message in messages %}
-                <div class="flash-error">{{ message }}</div>
-              {% endfor %}
-            </div>
-          {% endif %}
-        {% endwith %}
 
-        <form action="{{ url_for('index') }}" method="post">
+        {% if error %}
+            <div class="flash-messages">
+                <div class="flash-error">{{ error }}</div>
+            </div>
+        {% endif %}
+
+        <form action="{{ url_for('login.login') }}" method="post">
           <div class="form-group">
-            <label for="username">Benutzername</label>
-            <input type="text" id="username" name="username" placeholder="Benutzername eingeben" required />
+            <label for="email">E-Mail</label>
+            <input type="text" id="email" name="email" placeholder="E-Mail eingeben" required />
           </div>
-          
+
           <div class="form-group">
             <label for="password">Passwort</label>
             <input type="password" id="password" name="password" placeholder="Passwort eingeben" required />
           </div>
-          
+
           <button type="submit" class="login-button">Anmelden</button>
         </form>
     </div>
 </body>
 </html>
-

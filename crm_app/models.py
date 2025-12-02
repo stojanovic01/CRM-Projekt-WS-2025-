@@ -1,8 +1,6 @@
+from extensions import db  # Importiert die globale Instanz
 from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Index, ForeignKey, Numeric, DateTime, Integer, String, Text, Enum as SAEnum
-
-db = SQLAlchemy()
 
 # ============================================
 # 1. USER MODEL
@@ -12,15 +10,14 @@ class User(db.Model):
     id = db.Column(Integer, primary_key=True, autoincrement=True)
     name = db.Column(String(100), nullable=False)
     email = db.Column(String(255), unique=True)
-    password_hash = db.Column(String(255))
+    password_hash = db.Column(String(255))  # Einfaches Klartextpasswort
     role = db.Column(SAEnum('Schüler', 'Lehrer', 'Admin', name='role_enum'), default='Schüler')
     
     conversations = db.relationship("Conversation", back_populates="user")
 
     def __repr__(self):
         return f'<User {self.name}>'
-
-
+    
 # ============================================
 # 2. CUSTOMER MODEL
 # ============================================

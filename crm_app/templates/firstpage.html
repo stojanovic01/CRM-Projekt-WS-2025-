@@ -6,19 +6,6 @@
   <div class="hero-content">
     <h1 class="font-display hero-title">Willkommen im CRM System</h1>
     <p class="hero-subtitle">Verwalten Sie Ihre Kunden, Bestellungen und Kontakte effizient und modern</p>
-    <div class="hero-stats">
-      <div class="stat-card">
-        <div class="stat-number font-display">{{ customer_count or 0 }}</div>
-        <div class="stat-label">Kunden</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number font-display">{{ order_count or 0 }}</div>
-        <div class="stat-label">Bestellungen</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number font-display">{{ contact_count or 0 }}</div>
-        <div class="stat-label">Kontakte</div>
-      </div>
     </div>
   </div>
 </div>
@@ -27,47 +14,45 @@
 <div class="quick-actions">
   <h2>Schnellzugriff</h2>
   <div class="action-grid">
-    <a href="{{ url_for('customers') }}" class="action-card">
+    <a href="{{ url_for('customers.list_customers') }}" class="action-card">
       <div class="action-icon">👥</div>
       <h3>Kunden verwalten</h3>
       <p>Neue Kunden hinzufügen, bearbeiten und verwalten</p>
       <span class="action-arrow">→</span>
     </a>
     
-    <a href="{{ url_for('orders') }}" class="action-card">
+    <a href="{{ url_for('orders.list_orders') }}" class="action-card">
       <div class="action-icon">📦</div>
       <h3>Bestellungen</h3>
       <p>Bestellungen einsehen, erstellen und bearbeiten</p>
       <span class="action-arrow">→</span>
     </a>
     
-    <a href="{{ url_for('products') }}" class="action-card">
-      <div class="action-icon">🛍️</div>
-      <h3>Produkte</h3>
-      <p>Produktkatalog verwalten und Preise anpassen</p>
-      <span class="action-arrow">→</span>
-    </a>
-    
-  <a href="{{ url_for('conversations') }}" class="action-card">
+    <a href="#" class="action-card">
       <div class="action-icon">📞</div>
-      <h3>Kontakte</h3>
-  <p>Kundenkonversationen dokumentieren und nachverfolgen</p>
+      <h3>Konversationen</h3>
+      <p>Kundenkonversationen dokumentieren und nachverfolgen</p>
       <span class="action-arrow">→</span>
     </a>
-    
-    <a href="{{ url_for('users') }}" class="action-card">
-      <div class="action-icon">👤</div>
-      <h3>Benutzer</h3>
-      <p>Systembenutzer und Berechtigungen verwalten</p>
-      <span class="action-arrow">→</span>
-    </a>
-    
-    <a href="{{ url_for('mainview') }}" class="action-card">
-      <div class="action-icon">📊</div>
-      <h3>Dashboard</h3>
-      <p>Detaillierte Übersicht und Statistiken</p>
-      <span class="action-arrow">→</span>
-    </a>
+  </div>
+</div>
+
+<!-- System Info -->
+<div class="system-info">
+  <h3>System Information</h3>
+  <div class="info-grid">
+    <div class="info-item">
+      <span class="info-label">Version:</span>
+      <span class="info-value font-mono">1.0.0</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Letztes Update:</span>
+      <span class="info-value">{{ current_date or "Heute" }}</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Aktive Benutzer:</span>
+      <span class="info-value">{{ active_users or 1 }}</span>
+    </div>
   </div>
 </div>
 

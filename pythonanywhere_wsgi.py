@@ -1,42 +1,24 @@
-"""
-WSGI-Konfiguration für PythonAnywhere
-Diese Datei wird von PythonAnywhere als Entry-Point verwendet
-"""
-
 import sys
 import os
-from pathlib import Path
+from dotenv import load_dotenv
 
-# ============================================
-# Pfade konfigurieren
-# ============================================
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root / 'crm_app'))
-sys.path.insert(0, str(project_root))
+# Projektpfad
+project_root = '/home/sstojanovi/mysite'
+sys.path.insert(0, project_root)
 
-# Wechsel in Projekt-Verzeichnis
-os.chdir(str(project_root / 'crm_app'))
+# Virtualenv-Pfad
+venv_path = '/home/sstojanovi/.virtualenvs/mysite-312'
+activate_this = os.path.join(venv_path, 'bin', 'activate_this.py')
+if os.path.exists(activate_this):
+    with open(activate_this) as f:
+        exec(f.read(), {'__file__': activate_this})
 
-# ============================================
-# Umgebungsvariablen laden
-# ============================================
-if not os.environ.get('FLASK_ENV'):
-    os.environ['FLASK_ENV'] = 'production'
+# Optional: ins Projektverzeichnis wechseln
+os.chdir(project_root)
 
-# Lade .env wenn vorhanden
-if Path('.env').exists():
-    from dotenv import load_dotenv
-    load_dotenv()
+# .env laden
+load_dotenv(os.path.join(project_root, '.env'))
+os.environ['FLASK_ENV'] = 'production'
 
-# ============================================
-# Flask App importieren
-# ============================================
+# Flask-App importieren
 from app import app as application
-
-# ============================================
-# Error Handling für WSGI
-# ============================================
-if __name__ == '__main__':
-    print("⚠️  Diese Datei sollte nicht direkt ausgeführt werden!")
-    print("   Sie wird von PythonAnywhere als WSGI Entry-Point verwendet.")
-    print("   Verwenden Sie für lokale Tests: python crm_app/app.py")
