@@ -9,6 +9,7 @@ from views.login import login_bp
 from views.customers import customers_bp
 from views.orders import orders_bp
 from views.contacts import contacts_bp
+from views.conversations import conversations_bp
 
 # .env laden
 load_dotenv()
@@ -28,6 +29,7 @@ app.register_blueprint(login_bp)
 app.register_blueprint(customers_bp)
 app.register_blueprint(orders_bp)
 app.register_blueprint(contacts_bp)
+app.register_blueprint(conversations_bp)
 
 # Startseite -> direkt weiterleiten zur Login-Seite
 @app.route('/')
@@ -40,6 +42,11 @@ def firstpage():
     if 'user_id' not in session:
         return redirect(url_for('login.login'))
     return render_template('firstpage.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login.login'))
 
 # Tabellen erstellen (nur beim Start)
 with app.app_context():

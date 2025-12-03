@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="page-title">Bestellungen</h1>
+
+<div class="filter-section">
+    <form method="get" class="filter-form">
+        <input type="date" name="date_from" value="{{ date_from }}">
+        <input type="date" name="date_to" value="{{ date_to }}">
+
+        <select name="status">
+            <option value="">-- Status auswählen --</option>
+            <option value="Offen" {% if status == "Offen" %}selected{% endif %}>Offen</option>
+            <option value="In Bearbeitung" {% if status == "In Bearbeitung" %}selected{% endif %}>In Bearbeitung</option>
+            <option value="Abgeschlossen" {% if status == "Abgeschlossen" %}selected{% endif %}>Abgeschlossen</option>
+        </select>
+
+        <button type="submit" class="btn btn-primary">Filtern</button>
+        <a href="{{ url_for('orders.list_orders') }}" class="btn btn-secondary">Reset</a>
+    </form>
+</div>
+
+<div class="top-actions">
+    <a href="{{ url_for('orders.add_order') }}" class="btn btn-success">+ Neue Bestellung</a>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Kunde</th>
+            <th>Datum</th>
+            <th>Status</th>
+            <th>Betrag (€)</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for order in orders %}
+        <tr onclick="window.location='{{ url_for('orders.order_detail', order_id=order.id) }}'" class="clickable-row">
+            <td>{{ order.id }}</td>
+            <td>{{ order.customer.first_name }} {{ order.customer.last_name }}</td>
+            <td>{{ order.order_date.strftime('%d.%m.%Y') }}</td>
+            <td>{{ order.status }}</td>
+            <td>{{ "%.2f"|format(order.total_amount) }}</td>
+            <td><a href="{{ url_for('orders.order_detail', order_id=order.id) }}" class="btn btn-small">Details</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if orders|length == 0 %}
+<p>Keine Bestellungen gefunden.</p>
+{% endif %}
+
+{% endblock %}
