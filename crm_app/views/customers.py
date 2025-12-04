@@ -4,7 +4,6 @@ from crm_app.models import db, Customer, Order
 
 customers_bp = Blueprint('customers', __name__, url_prefix='/customers')
 
-
 @customers_bp.route('/')
 def list_customers():
     if db is None or Customer is None:
@@ -18,7 +17,6 @@ def list_customers():
 
         query = Customer.query
         if search:
-            # SQLite unterstützt kein ILIKE, daher LIKE verwenden
             search_pattern = f"%{search}%"
             query = query.filter(
                 (Customer.first_name.like(search_pattern)) |
@@ -29,6 +27,7 @@ def list_customers():
         customers = query.order_by(Customer.last_name.asc(), Customer.first_name.asc()).all()
 
         return render_template('customers.html', customers=customers, search=search)
+    
     except Exception as e:
         print(f"[list_customers Fehler]: {e}")
         return "Interner Fehler beim Laden der Kunden", 500

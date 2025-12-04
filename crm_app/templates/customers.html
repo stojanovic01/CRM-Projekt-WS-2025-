@@ -1,151 +1,57 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="page-header">
-    <h1><span class="page-icon">👥</span>Kontakte verwalten</h1>
-    <div style="display: flex; gap: var(--space-md); align-items: center;">
-        <form method="GET" action="{{ url_for('customers.list_customers') }}" style="display: flex; gap: 0.5rem; margin: 0;">
-            <input type="search" name="search" placeholder="Suche Kontakte..." value="{{ search or '' }}" style="padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid rgba(0,0,0,0.1); background: var(--bg-primary); min-width: 250px;">
-            <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem; margin: 0;">Suchen</button>
-            {% if search %}
-            <a href="{{ url_for('customers.list_customers') }}" class="btn btn-secondary" style="padding: 0.5rem 1rem;">✕</a>
-            {% endif %}
-        </form>
-        <button class="btn btn-primary" onclick="showAddForm()">
-            <span class="btn-icon">➕</span>Neuen Kontakt hinzufügen
-        </button>
-    </div>
-</div>
+<h1>Kontakte verwalten</h1>
 
 <!-- Flash Messages -->
 {% with messages = get_flashed_messages() %}
   {% if messages %}
-    <div class="flash-messages">
+    <ul>
       {% for message in messages %}
-        <div class="flash-message flash-success">{{ message }}</div>
+        <li>{{ message }}</li>
       {% endfor %}
-    </div>
+    </ul>
   {% endif %}
 {% endwith %}
 
 <!-- Add/Edit Customer Form -->
-<div id="customerForm" class="form-container" style="display: none;">
-    <div class="form-card">
-        <h3 id="formTitle">Neuen Kontakt hinzufügen</h3>
-        <form method="POST" action="{{ url_for('customers.add_customer') }}">
-            <input type="hidden" id="customerId" name="customer_id" value="">
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="firstName">Vorname *</label>
-                    <input type="text" id="firstName" name="first_name" required>
-                </div>
-                <div class="form-group">
-                    <label for="lastName">Nachname *</label>
-                    <input type="text" id="lastName" name="last_name" required>
-                </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="email">E-Mail</label>
-                    <input type="email" id="email" name="email">
-                </div>
-                <div class="form-group">
-                    <label for="phone">Telefon</label>
-                    <input type="tel" id="phone" name="phone">
-                </div>
-            </div>
-            
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">
-                    <span class="btn-icon">💾</span>Speichern
-                </button>
-                <button type="button" class="btn btn-secondary" onclick="hideForm()">
-                    <span class="btn-icon">❌</span>Abbrechen
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
+<form method="POST" action="{{ url_for('customers.add_customer') }}">
+    <input type="hidden" name="customer_id" value="">
+    <input type="text" name="first_name" placeholder="Vorname" required>
+    <input type="text" name="last_name" placeholder="Nachname" required>
+    <input type="email" name="email" placeholder="E-Mail">
+    <input type="tel" name="phone" placeholder="Telefon">
+    <button type="submit">Speichern</button>
+</form>
 
 <!-- Customers Table -->
-<div class="table-container">
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>E-Mail</th>
-                <th>Telefon</th>
-                <th>Erstellt am</th>
-                <th>Aktionen</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for customer in customers %}
-            <tr>
-                <td class="customer-name">{{ customer.first_name }} {{ customer.last_name }}</td>
-                <td class="email">{{ customer.email or '-' }}</td>
-                <td class="phone">{{ customer.phone or '-' }}</td>
-                <td class="date">{{ customer.created_at|date if customer.created_at else '-' }}</td>
-                <td class="actions">
-                    <a class="btn btn-small btn-info" href="{{ url_for('customers.customer_detail', customer_id=customer.id) }}">
-                        <span class="btn-icon">👁️</span>Ansehen
-                    </a>
-                        <button class="btn btn-small btn-edit" onclick="editCustomer({{ customer.id }}, '{{ customer.first_name|escapejs }}', '{{ customer.last_name|escapejs }}', '{{ (customer.email or '')|escapejs }}', '{{ (customer.phone or '')|escapejs }}')">
-
-                        <span class="btn-icon">✏️</span>Bearbeiten
-                    </button>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="5" class="empty-state">Keine Kontakte gefunden. Fügen Sie den ersten Kontakt hinzu!</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<!-- JavaScript Form & Modal Handling -->
-<script>
-let editingCustomerId = null;
-
-function showAddForm() {
-    document.getElementById('formTitle').textContent = 'Neuen Kontakt hinzufügen';
-    document.getElementById('customerId').value = '';
-    document.getElementById('firstName').value = '';
-    document.getElementById('lastName').value = '';
-    document.getElementById('email').value = '';
-    document.getElementById('phone').value = '';
-    document.getElementById('customerForm').style.display = 'block';
-    editingCustomerId = null;
-}
-
-function editCustomer(id, firstName, lastName, email, phone) {
-    document.getElementById('formTitle').textContent = 'Kontakt bearbeiten';
-    document.getElementById('customerId').value = id;
-    document.getElementById('firstName').value = firstName;
-    document.getElementById('lastName').value = lastName;
-    document.getElementById('email').value = email;
-    document.getElementById('phone').value = phone;
-    document.getElementById('customerForm').style.display = 'block';
-    editingCustomerId = id;
-}
-
-function hideForm() {
-    document.getElementById('customerForm').style.display = 'none';
-    editingCustomerId = null;
-}
-
-// Hide flash messages after 5 seconds
-setTimeout(function() {
-    const flashMessages = document.querySelectorAll('.flash-message');
-    flashMessages.forEach(msg => {
-        msg.style.opacity = '0';
-        setTimeout(() => msg.remove(), 300);
-    });
-}, 5000);
-</script>
+<table border="1" cellpadding="5">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>E-Mail</th>
+            <th>Telefon</th>
+            <th>Erstellt am</th>
+            <th>Aktionen</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for customer in customers %}
+        <tr>
+            <td>{{ customer.first_name }} {{ customer.last_name }}</td>
+            <td>{{ customer.email or '-' }}</td>
+            <td>{{ customer.phone or '-' }}</td>
+            <td>{{ customer.created_at and customer.created_at.strftime('%Y-%m-%d %H:%M') or '-' }}</td>
+            <td>
+                <a href="{{ url_for('customers.customer_detail', customer_id=customer.id) }}">Ansehen</a>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="5">Keine Kontakte gefunden.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 
 {% endblock %}

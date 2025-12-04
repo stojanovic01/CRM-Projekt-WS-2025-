@@ -1,116 +1,103 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session
-from datetime import datetime
-
-# Modelle laden – mit Fallbacks (wie in deinen anderen Dateien)
-try:
-    from crm_app.models import db, Customer, Conversation
-except ModuleNotFoundError:
-    try:
-        from ..models import db, Customer, Conversation
-    except ModuleNotFoundError:
-        try:
-            from models import db, Customer, Conversation
-        except ModuleNotFoundError:
-            db = None
-            Customer = None
-            Conversation = None
-            print("⚠️ Warning: Konversationsmodelle konnten nicht importiert werden!")
+from crm_app.models import db, Conversation, Customer
+from sqlalchemy import or_, cast, String
+from math import ceil
+import traceback
 
 conversations_bp = Blueprint("conversations", __name__, url_prefix="/conversations")
 
-
-# -------------------------------------
-#  ALLE KONVERSATIONEN LISTEN
-# -------------------------------------
+# ---------------------------------------
+# Route: Alle Konversationen auflisten
+# ---------------------------------------
 @conversations_bp.route("/")
 def list_conversations():
-    if db is None or Conversation is None:
-        return "Fehler: Datenbankmodelle nicht verfügbar", 500
-
+    # Sicherstellen, dass der User eingeloggt ist
     if "user_id" not in session:
         return redirect(url_for("login.login"))
 
-    try:
-        conversations = Conversation.query.order_by(
-            Conversation.conversation_time.desc()
-        ).all()
-
-        return render_template(
-            "conversations.html",
-            conversations=conversations
-        )
-    except Exception as e:
-        print(f"list_conversations Fehler: {e}")
-        return "Interner Fehler beim Laden der Konversationen", 500
-
-
-# -------------------------------------
-#  KONVERSATION FÜR EINEN KONKRETEN KUNDEN
-# -------------------------------------
-@conversations_bp.route("/customer/<int:customer_id>")
-def customer_conversations(customer_id):
-    if db is None or Conversation is None or Customer is None:
-        return "Fehler: Datenbankmodelle nicht verfügbar", 500
-
-    if "user_id" not in session:
-        return redirect(url_for("login.login"))
+    # Filter- / Suchparameter
+    search_q = request.args.get("q", "").strip()
+    selected_channel = request.args.get("channel", "")
+    current_order = request.args.get("order", "desc")
+    page = request.args.get("page", 1, type=int)
+    per_page = 20
 
     try:
-        customer = Customer.query.get_or_404(customer_id)
+        # Grundquery mit LEFT JOIN auf Customer
+        query = Conversation.query.outerjoin(Customer)
 
-        conversations = Conversation.query.filter_by(
-            customer_id=customer_id
-        ).order_by(
-            Conversation.conversation_time.desc()
-        ).all()
-
-        return render_template(
-            "customer_conversations.html",
-            customer=customer,
-            conversations=conversations
-        )
-
-    except Exception as e:
-        print(f"customer_conversations Fehler: {e}")
-        return "Interner Fehler beim Laden der Kundenkonversationen", 500
-
-
-# -------------------------------------
-#  NEUE KONVERSATION HINZUFÜGEN
-# -------------------------------------
-@conversations_bp.route("/add/<int:customer_id>", methods=["GET", "POST"])
-def add_conversation(customer_id):
-    if db is None or Conversation is None or Customer is None:
-        return "Fehler: Datenbankmodelle nicht verfügbar", 500
-
-    if "user_id" not in session:
-        return redirect(url_for("login.login"))
-
-    try:
-        customer = Customer.query.get_or_404(customer_id)
-
-        if request.method == "POST":
-            conversation_text = request.form.get("conversation_text")
-
-            if not conversation_text.strip():
-                return "Konversationstext darf nicht leer sein", 400
-
-            new_conversation = Conversation(
-                customer_id=customer_id,
-                conversation_text=conversation_text,
-                conversation_time=datetime.now(),
+        # ----------------------------
+        #   Globale Suche
+        # ----------------------------
+        if search_q:
+            pattern = f"%{search_q}%"
+            query = query.filter(
+                or_(
+                    cast(Conversation.id, String).ilike(pattern),  # ID durchsuchen
+                    Customer.first_name.ilike(pattern),           # Vorname
+                    Customer.last_name.ilike(pattern),            # Nachname
+                    Conversation.subject.ilike(pattern),          # Betreff
+                    Conversation.notes.ilike(pattern),            # Notizen
+                    Conversation.channel.ilike(pattern)           # Kanal
+                )
             )
 
-            db.session.add(new_conversation)
-            db.session.commit()
+        # Kanal-Filter
+        if selected_channel:
+            query = query.filter(Conversation.channel == selected_channel)
 
-            return redirect(url_for("conversations.customer_conversations", customer_id=customer_id))
+        # Sortierung
+        if current_order == "asc":
+            query = query.order_by(Conversation.conversation_time.asc())
+        else:
+            query = query.order_by(Conversation.conversation_time.desc())
 
+        # Pagination
+        conversations_pagination = query.paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+
+        # Kanalliste
+        channels = ["Telefon", "E-Mail", "Meeting", "Chat"]
+
+        # Template rendern
         return render_template(
-            "add_conversation.html",
-            customer=customer
+            "conversations.html",
+            conversations_pagination=conversations_pagination,
+            search_q=search_q,
+            selected_channel=selected_channel,
+            current_order=current_order,
+            channels=channels
         )
 
     except Exception as e:
-        print(f"add_conversation Fehler: {e}")
-        return "Interner Fehler beim Erstellen der Konversation", 500
+        # Stacktrace für Logs ausgeben
+        print("Fehler in list_conversations:", e)
+        traceback.print_exc()
+        return f"Interner Fehler: {e}", 500
+
+
+# ---------------------------------------
+# Route: Konversationen eines Kunden
+# ---------------------------------------
+@conversations_bp.route("/customer/<int:customer_id>/")
+def customer_conversations(customer_id):
+    if "user_id" not in session:
+        return redirect(url_for("login.login"))
+
+    # Kunde abrufen oder 404
+    customer = Customer.query.get_or_404(customer_id)
+
+    # Alle Konversationen des Kunden, neueste zuerst
+    conversations = Conversation.query.filter_by(customer_id=customer_id)\
+                                      .order_by(Conversation.conversation_time.desc())\
+                                      .all()
+
+    # Template rendern
+    return render_template(
+        "customer_conversations.html",
+        customer=customer,
+        conversations=conversations
+    )
